@@ -121,14 +121,31 @@ function setTestResults(results) {
         if (test.testcase_file !== undefined) {
             testcase = readTestcaseFile(test.testcase_file);
         }
-    
+
+        if (test.status !== 'Pass') {
+            const failedTestcasePath = path.join(
+                problemBuildsDir,
+                "problems",
+                activeProblem,
+                `${test.testcase_name}_failed.txt`
+            );
+            let fileContent = `Testcase: ${test.testcase_name}\n`;
+            fileContent += `Status: ${test.status}\n`;
+            if(test.actual) fileContent += `Actual: ${JSON.stringify(test.actual)}\n`;
+            if(test.expected) fileContent += `Expected: ${JSON.stringify(test.expected)}\n`;
+            if(test.reason) fileContent += `Reason: ${test.reason}\n`;
+            if(testcase) fileContent += `Testcase Content: ${testcase.replace(/<br>&emsp;/g, "\n")}\n`;
+
+            file.writeFileSync(failedTestcasePath, fileContent);
+        }
+
         return `
-            <p>Testcase Name: ${test.testcase_name}</p>
+            <p>${testcase ? '실패한 ' : ''}Testcase Name: ${test.testcase_name}</p>
             <p>Status: ${test.status}</p>
             ${test.actual ? `<p>Actual: ${JSON.stringify(test.actual)}</p>` : ''}
-            ${test.expected ? `<p>Expected: ${JSON.stringify(test.expected)}</p>` : ''}
-            ${test.reason ? `<p>Reason: ${test.reason}</p>` : ''}
-            ${testcase ? `<p>Testcase: ${testcase}</p>` : ''}
+            ${test.expected ? `<p>정답값: ${JSON.stringify(test.expected)}</p>` : ''}
+            ${test.reason ? `<p>틀린이유: ${test.reason}</p>` : ''}
+            ${testcase ? `<p>반례: ${testcase}</p>` : ''}
             <hr>
         `;
     }).join('');
