@@ -22,10 +22,11 @@ function readMdFile(filePath) {
     marked.setOptions({
         breaks: false,
     });
-    const data = fs.readFileSync(filePath, 'utf8');
-    if (!data) {
-        throw new Error(`File does not exist: ${filePath}`);
+    // 파일이 존재하지 않을 수 있으므로 체크
+    if (!fs.existsSync(filePath)) {
+        return `File does not exist: ${filePath}`;
     }
+    const data = fs.readFileSync(filePath, 'utf8');
     return marked.marked(data);
 }
 
@@ -79,6 +80,18 @@ function calculateDirectories() {
         const descriptionFile = path.join(problemDir, 'description.md');
         const solutionFile = path.join(problemDir, language, 'solution.md');
         const userSolutionFilename = path.join(problemDir, language, 'solution.cpp');
+        
+        // ===== METADATA.JSON 읽기 로직 추가 시작 =====
+        const metadataFile = path.join(problemDir, 'metadata.json');
+        let metadata = {};
+        if (fs.existsSync(metadataFile)) {
+            try {
+                metadata = JSON.parse(fs.readFileSync(metadataFile, 'utf8'));
+            } catch (e) {
+                console.error(`Error parsing metadata.json for ${problemName}:`, e);
+            }
+        }
+        // ===== METADATA.JSON 읽기 로직 추가 끝 =====
 
         if (!fs.existsSync(userSolutionFilename)) {
             throw new Error(`User solution file does not exist: ${userSolutionFilename}`);
@@ -88,6 +101,10 @@ function calculateDirectories() {
             global.localDirDict[problemName] || {};
         global.localDirDict[problemName]["description"] =
             readMdFile(descriptionFile);
+        
+        // ===== 읽어온 메타데이터 저장 =====
+        global.localDirDict[problemName]["metadata"] = metadata;
+
         global.localDirDict[problemName][language] =
             global.localDirDict[problemName][language] || {};
             global.localDirDict[problemName][language]["solution"] =
@@ -133,6 +150,11 @@ class DirectoryManager {
 
     getSolution(problemName) {
         return global.dirDict[problemName]["cpp"]["solution"];
+    }
+
+    // ===== 메타데이터를 가져오는 GETTER 함수 추가 =====
+    getMetadata(problemName) {
+        return global.dirDict[problemName]["metadata"] || {};
     }
 
     getUserSolutionFilename(problemName) {
