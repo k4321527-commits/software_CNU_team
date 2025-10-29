@@ -245,3 +245,166 @@ html, body {
 .testcase-container-title {
     margin: 10px 3px 3px 3px;
 }
+
+/* --- 버튼 스타일 --- */
+#curriculum-button {
+    background-color: #007ACC; /* 파란색 배경 */
+    color: white; /* 흰색 글씨 */
+    font-weight: bold; /* 굵은 글씨체 */
+    margin-left: 15px; /* 다른 버튼과 간격 추가 */
+}
+
+#curriculum-button:hover {
+    background-color: #005f9e; /* 마우스를 올렸을 때 약간 더 어두운 파란색 */
+}
+
+/* --- 오답 노트 기본 스타일 --- */
+.note-item {
+    border: 1px solid var(--grey-medium);
+    border-radius: 5px;
+    margin-bottom: 10px;
+}
+
+.note-summary {
+    background-color: var(--grey-dark);
+    padding: 10px;
+    cursor: pointer;
+    outline: none; /* 클릭 시 테두리 제거 */
+}
+
+.note-summary:hover {
+    background-color: var(--grey-light);
+}
+
+.note-status-fail {
+    color: #f48771; /* 실패 상태 텍스트 색상 */
+    font-weight: bold;
+}
+
+.note-content {
+    padding: 15px;
+    background-color: var(--grey-very-dark);
+    border-top: 1px solid var(--grey-medium);
+}
+
+/* 일반적인 h4 스타일 (AI 분석 결과 h4와 구분) */
+.note-content h4 {
+    margin-top: 0;
+    color: var(--grey-font-color);
+}
+
+.note-content p {
+    margin: 5px 0;
+}
+
+/* 오답 노트에 포함된 코드 블록 스타일 */
+.note-content pre {
+    background-color: #111;
+    padding: 10px;
+    border-radius: 4px;
+    white-space: pre-wrap; /* 코드가 길면 자동 줄바꿈 */
+    word-break: break-all;
+}
+
+/* 오답 노트 삭제 버튼 스타일 */
+.delete-note-btn {
+    float: right; /* 오른쪽 끝으로 이동 */
+    cursor: pointer;
+    padding: 0 5px;
+    border-radius: 3px;
+    font-size: 0.8em;
+    user-select: none; /* 클릭 시 텍스트 선택 방지 */
+    transition: background-color 0.2s; /* 부드러운 전환 효과 */
+}
+
+.delete-note-btn:hover {
+    background-color: var(--grey-light);
+}
+
+/* --- 에러 번역 결과 스타일 --- */
+.error-translation {
+    background-color: var(--grey-dark);
+    border: 1px solid var(--grey-light);
+    border-left: 3px solid #f48771; /* 에러를 의미하는 붉은색 테두리 */
+    border-radius: 5px;
+    padding: 15px;
+    margin: 5px;
+}
+
+.error-title {
+    color: #d16969; /* 에러 제목 색상 */
+    margin-top: 0;
+    font-size: 1.1em;
+}
+
+.error-description {
+    color: var(--grey-font-color);
+    line-height: 1.5; /* 줄 간격 */
+}
+
+/* 원본 에러 메시지 스타일 */
+.original-error-details summary {
+    cursor: pointer;
+    color: var(--grey-font-color);
+    font-size: 0.9em;
+    margin-top: 15px;
+}
+
+.original-error {
+    background-color: #111;
+    padding: 10px;
+    border-radius: 4px;
+    white-space: pre-wrap; /* 코드가 길면 자동 줄바꿈 */
+    word-break: break-all;
+    margin-top: 5px;
+    font-size: small;
+}
+
+/* --- AI 분석 버튼 및 결과 스타일 (신규) --- */
+
+.ai-analysis-btn {
+    background-color: #569cd6; /* VSCode 블루 */
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 4px;
+    font-weight: bold;
+    cursor: pointer;
+    margin: 10px 0;
+    transition: background-color 0.2s;
+}
+
+.ai-analysis-btn:hover:not(:disabled) {
+    background-color: #437ba8;
+}
+
+.ai-analysis-btn:disabled {
+    background-color: #404040;
+    cursor: default;
+}
+
+/* AI 분석 결과 섹션의 헤딩 스타일을 구분합니다. */
+/* index.js의 setNotes에서 첫 번째 h4는 테스트케이스, 두 번째 h4는 AI 분석 결과 헤딩입니다. */
+.note-content h4:nth-of-type(2) { 
+    color: #ffd700 !important; /* 분석 결과 헤딩 색상 (황금색 계열) */
+    border-bottom: 1px solid #3c3c3c;
+    padding-bottom: 5px;
+    margin-top: 15px;
+}
+
+/* AI 분석 결과 내부의 리스트 스타일 */
+.note-content ul {
+    list-style-type: '🧠 '; /* 취약 개념에 특수 기호 */
+    padding-left: 20px;
+    margin-top: 5px;
+}
+
+.note-content li {
+    background-color: transparent;
+    border: none;
+    padding: 2px 0;
+    margin: 0;
+    list-style-position: inside;
+    text-indent: -1.5em; /* 리스트 마커와 텍스트 정렬 */
+    padding-left: 1.5em;
+}
