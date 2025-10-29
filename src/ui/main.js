@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // main.js
 
 const { app, BrowserWindow, globalShortcut, ipcMain } = require('electron');
@@ -22,6 +23,11 @@ if (GEMINI_API_KEY) {
 } else {
     console.warn("GEMINI_API_KEY is missing. AI analysis will be skipped.");
 }
+=======
+const { app, BrowserWindow, globalShortcut, ipcMain } = require('electron');
+const path = require('path');
+const DirectoryManager = require('./directory-manager.js');
+>>>>>>> 176a13f73a780469acb8a925d3e92ca89fd63af8
 
 saveFilePaths();
 
@@ -42,7 +48,11 @@ function saveFilePaths() {
     
     const fs = require('fs');
     fs.writeFileSync(DirectoryManager.getPathsFile(), 
+<<<<<<< HEAD
                     problemBuildsDir, 'utf8');
+=======
+                     problemBuildsDir, 'utf8');
+>>>>>>> 176a13f73a780469acb8a925d3e92ca89fd63af8
 }
 
 function createWindow() {
@@ -135,6 +145,7 @@ ipcMain.on('open-curriculum-window', (event, conceptsToReview) => {
 // 오답 노트 파일 경로를 요청하면 응답해주는 핸들러
 ipcMain.handle('get-user-data-path', () => {
     return app.getPath('userData');
+<<<<<<< HEAD
 });
 
 
@@ -190,4 +201,6 @@ ipcMain.handle('request-ai-analysis', async (event, analysisData) => {
         console.error('Gemini API 호출 및 분석 실패:', error);
         throw new Error(`AI 분석 실패: ${error.message}`);
     }
+=======
+>>>>>>> 176a13f73a780469acb8a925d3e92ca89fd63af8
 });

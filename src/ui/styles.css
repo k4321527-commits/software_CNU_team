@@ -246,7 +246,10 @@ html, body {
     margin: 10px 3px 3px 3px;
 }
 
+<<<<<<< HEAD
 /* --- 버튼 스타일 --- */
+=======
+>>>>>>> 176a13f73a780469acb8a925d3e92ca89fd63af8
 #curriculum-button {
     background-color: #007ACC; /* 파란색 배경 */
     color: white; /* 흰색 글씨 */
@@ -258,7 +261,11 @@ html, body {
     background-color: #005f9e; /* 마우스를 올렸을 때 약간 더 어두운 파란색 */
 }
 
+<<<<<<< HEAD
 /* --- 오답 노트 기본 스타일 --- */
+=======
+/* 오답 노트 스타일 */
+>>>>>>> 176a13f73a780469acb8a925d3e92ca89fd63af8
 .note-item {
     border: 1px solid var(--grey-medium);
     border-radius: 5px;
@@ -287,7 +294,10 @@ html, body {
     border-top: 1px solid var(--grey-medium);
 }
 
+<<<<<<< HEAD
 /* 일반적인 h4 스타일 (AI 분석 결과 h4와 구분) */
+=======
+>>>>>>> 176a13f73a780469acb8a925d3e92ca89fd63af8
 .note-content h4 {
     margin-top: 0;
     color: var(--grey-font-color);
@@ -306,6 +316,7 @@ html, body {
     word-break: break-all;
 }
 
+<<<<<<< HEAD
 /* 오답 노트 삭제 버튼 스타일 */
 .delete-note-btn {
     float: right; /* 오른쪽 끝으로 이동 */
@@ -322,6 +333,9 @@ html, body {
 }
 
 /* --- 에러 번역 결과 스타일 --- */
+=======
+/* 에러 번역 결과 스타일 */
+>>>>>>> 176a13f73a780469acb8a925d3e92ca89fd63af8
 .error-translation {
     background-color: var(--grey-dark);
     border: 1px solid var(--grey-light);
@@ -360,6 +374,7 @@ html, body {
     font-size: small;
 }
 
+<<<<<<< HEAD
 /* --- AI 분석 버튼 및 결과 스타일 (신규) --- */
 
 .ai-analysis-btn {
@@ -407,4 +422,19 @@ html, body {
     list-style-position: inside;
     text-indent: -1.5em; /* 리스트 마커와 텍스트 정렬 */
     padding-left: 1.5em;
+=======
+/* 오답 노트 삭제 버튼 스타일 */
+.delete-note-btn {
+    float: right; /* 오른쪽 끝으로 이동 */
+    cursor: pointer;
+    padding: 0 5px;
+    border-radius: 3px;
+    font-size: 0.8em;
+    user-select: none; /* 클릭 시 텍스트 선택 방지 */
+    transition: background-color 0.2s; /* 부드러운 전환 효과 */
+}
+
+.delete-note-btn:hover {
+    background-color: var(--grey-light);
+>>>>>>> 176a13f73a780469acb8a925d3e92ca89fd63af8
 }

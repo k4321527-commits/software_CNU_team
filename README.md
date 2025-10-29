@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 OpenLeetCode - An open source version of LeetCode
 --------------------------------------------------------
 Welcome to the OpenLeetCode Project!
@@ -179,3 +180,8 @@ Feel free to contribute with code, test cases, or even code reviews.
 
 For a more in-depth guide on how to contribute and information about the inner workings of OpenLeetCode, please refer to the [Docs](docs/index.md).
 You can also join our [Discord chat](https://discord.gg/BzkqubYUm8) if you have any questions about the usage or development.
+=======
+# software_CNU_team
+
+1. 장완중 팀숙제
+>>>>>>> 176a13f73a780469acb8a925d3e92ca89fd63af8
