@@ -1,25 +1,29 @@
 :root {
-    --grey-very-light: #606060;
-    --grey-light: #434343;
-    --grey-medium: #333333;
-    --grey-dark: #262626;
-    --grey-very-dark: #1e1e1e;
     --white: #ffffff;
-    --grey-font-color: #B0B0B0;
+    --black: #000000;
+    --grey-very-light: #f7f7f7; /* 아주 밝은 회색 (배경) */
+    --grey-light: #e0e0e0;       /* 밝은 회색 (호버/경계) */
+    --grey-medium: #c0c0c0;      /* 중간 회색 (탭/구분선) */
+    --grey-dark: #666666;        /* 어두운 회색 (글꼴/테두리) */
+    --grey-very-dark: #333333;   /* 아주 어두운 회색 (강조 글꼴) */
+    --grey-font-color: #555555; /* 일반 탭 글꼴 색상 */
     
-    --panel-background: var(--grey-very-dark);
-    --border_color: var(--grey-very-light);
-    --content-background: var(--grey-dark);
-    --hover_color: var(--grey-light);
-    --panel-border: var(--grey-very-light);
-    --splitter: var(--grey-light);
-    --tab-background: var(--grey-medium);
-    --content-font-color: var(--white);
-    --tab-font-color: var(--grey-font-color);
+    /* 주요 색상 변수를 라이트 모드에 맞게 재정의 */
+    --panel-background: var(--white);       /* 메인 배경: 흰색 */
+    --content-background: var(--grey-very-light); /* 내용 배경: 아주 밝은 회색 */
+    --tab-background: var(--grey-very-light); /* 탭 배경: 아주 밝은 회색 */
+    
+    --border_color: var(--grey-medium);     /* 테두리 색상 */
+    --hover_color: var(--grey-medium);      /* 호버 색상: 중간 회색 */
+    --panel-border: var(--grey-medium);
+    --splitter: var(--grey-medium);
+    
+    --content-font-color: var(--black);     /* 내용 글꼴: 검은색 */
+    --tab-font-color: var(--grey-dark);     /* 탭 글꼴: 어두운 회색 */
 
     --content-font-family: "Segoe UI";
     
-    --scrollbar-foreground: #d4d4d4;
+    --scrollbar-foreground: #606060;
     --scrollbarSlider-background: rgba(121, 121, 121, 0.4);
 }
 
@@ -32,13 +36,13 @@ body {
 
 .label {
     color: var(--content-font-color);
-    background-color: var(--grey-very-dark);
+    background-color: var(--panel-background);
 }
 
 select, button {
-    background-color: var(--grey-medium);
-    color: var(--white);
-    border: none;
+    background-color: var(--grey-light); /* 버튼/선택창: 밝은 회색 */
+    color: var(--black); /* 글꼴: 검은색 */
+    border: 1px solid var(--grey-medium); /* 테두리 추가 */
     padding: 5px 10px;
 }
 
@@ -65,7 +69,7 @@ select:hover {
 
 .root-panel {
     margin: 1px 1 1px 1px;
-    border: 2px solid var(--grey-very-dark);
+    border: 2px solid var(--grey-very-light);
     overflow: hidden;
 }
 
@@ -76,8 +80,8 @@ select:hover {
 }
 
 .markdown-content {
-    color: var(--panel_foreground);
-    background-color: var(--grey-very-dark);
+    color: var(--content-font-color);
+    background-color: var(--panel-background);
     height: 100%;
 }
 .tab-panel {
@@ -86,6 +90,7 @@ select:hover {
     padding: 5px;
     color: var(--tab-font-color);
     height: 18px;
+    border-bottom: 1px solid var(--border_color); /* 하단 테두리 추가 */
 }
 
 .tab {
@@ -100,7 +105,7 @@ select:hover {
 }
 
 .content {
-    background-color: var(--grey-very-dark);
+    background-color: var(--panel-background); /* 흰색 배경 */
     color: var(--content-font-color);
     font-family: var(--content-font-family);
     overflow-y: auto;
@@ -115,7 +120,7 @@ select:hover {
 .tab-content {
     display: none;
     height: 100%;
-    background-color: var(--grey-very-dark);
+    background-color: var(--panel-background); /* 흰색 배경 */
     box-sizing: border-box;
 }
 
@@ -124,12 +129,14 @@ select:hover {
 }
 
 .tab.selected {
-    background-color: var(--panel_background);
+    background-color: var(--panel-background); /* 선택된 탭은 배경과 같게 */
+    color: var(--black); /* 선택된 탭 글꼴은 검은색으로 강조 */
+    border-bottom: 2px solid #007ACC; /* 아래쪽에 파란색 강조선 추가 */
 }
 
 .compilation-content {
     box-sizing: border-box;
-    background-color: var(--grey-very-dark);
+    background-color: var(--panel-background);
     width: 100%;
     white-space: pre-wrap;
     word-break: break-all;
@@ -145,7 +152,7 @@ select:hover {
 
 .panel {
     display: flex;
-    background-color: var(--grey-dark);
+    background-color: var(--panel-background);
 }
 
 .panel-row {
@@ -173,12 +180,13 @@ select:hover {
     flex: none;
 }
 
+/* 코드 블록 스타일: 이미지처럼 밝은 배경에 검은색에 가까운 글씨 */
 code {
-    background-color: #ffffff12;
-    border-color: #f7faff1f;
+    background-color: #f7f7f7; /* 아주 밝은 회색 배경 */
+    border-color: #cccccc;
     border-radius: 5px;
     border-width: 1px;
-    color: #eff1f6bf;
+    color: #333333; /* 어두운 글꼴 */
     font-family: Menlo,sans-serif;
     font-size: .75rem;
     line-height: 1rem;
@@ -188,6 +196,7 @@ code {
 
 .editor{
     height: 100%;
+    /* 편집기 배경도 밝게 처리 필요 (Monaco Editor 등의 설정에 따라 다름) */
 }
 
 html, body {
@@ -210,11 +219,13 @@ html, body {
 }
 
 .gutter.gutter-horizontal {
-    background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAeCAYAAADkftS9AAAAIklEQVQoU2M4c+bMfxAGAgYYmwGrIIiDjrELjpo5aiZeMwF+yNnOs5KSvgAAAABJRU5ErkJggg==');
+    /* 구분선 이미지는 그대로 유지 */
+    background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAeCAYAAADkftS9AAAAIklEQVQoU2M4c+bMfxAGAgYYmwGrIIiDjrELjpo5aiZeMwF+yNnOs5KSvgAAAABJRU55rD/p/YyX/T/R/T/x+rAAAAAElFTkSuQmCC'); 
     cursor: col-resize;
 }
 
 .gutter.gutter-vertical {
+    /* 구분선 이미지는 그대로 유지 */
     background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAFAQMAAABo7865AAAABlBMVEVHcEzMzMzyAv2sAAAAAXRSTlMAQObYZgAAABBJREFUeF5jOAMEEAIEEFwAn3kMwcB6I2AAAAAASUVORK5CYII=');
     cursor: row-resize;
 }
@@ -232,7 +243,7 @@ html, body {
 }
 
 .testcase-container-text {
-    background-color: var(--grey-very-dark);
+    background-color: var(--panel-background);
     color: var(--content-font-color);
     font-family: var(--content-font-family);
     overflow: hidden;
@@ -248,14 +259,14 @@ html, body {
 
 /* --- 버튼 스타일 --- */
 #curriculum-button {
-    background-color: #007ACC; /* 파란색 배경 */
-    color: white; /* 흰색 글씨 */
-    font-weight: bold; /* 굵은 글씨체 */
-    margin-left: 15px; /* 다른 버튼과 간격 추가 */
+    background-color: #007ACC; 
+    color: white; 
+    font-weight: bold; 
+    margin-left: 15px; 
 }
 
 #curriculum-button:hover {
-    background-color: #005f9e; /* 마우스를 올렸을 때 약간 더 어두운 파란색 */
+    background-color: #005f9e; 
 }
 
 /* --- 오답 노트 기본 스타일 --- */
@@ -266,31 +277,33 @@ html, body {
 }
 
 .note-summary {
-    background-color: var(--grey-dark);
+    background-color: var(--grey-light); /* 밝은 배경 */
+    color: var(--black);
     padding: 10px;
     cursor: pointer;
-    outline: none; /* 클릭 시 테두리 제거 */
+    outline: none; 
 }
 
 .note-summary:hover {
-    background-color: var(--grey-light);
+    background-color: var(--grey-medium);
 }
 
 .note-status-fail {
-    color: #f48771; /* 실패 상태 텍스트 색상 */
+    color: #cc3333; /* 실패 상태 텍스트 색상을 좀 더 일반적인 붉은색으로 */
     font-weight: bold;
 }
 
 .note-content {
     padding: 15px;
-    background-color: var(--grey-very-dark);
+    background-color: var(--panel-background); /* 흰색 배경 */
     border-top: 1px solid var(--grey-medium);
+    color: var(--black);
 }
 
 /* 일반적인 h4 스타일 (AI 분석 결과 h4와 구분) */
 .note-content h4 {
     margin-top: 0;
-    color: var(--grey-font-color);
+    color: var(--grey-dark); /* 어두운 글꼴 */
 }
 
 .note-content p {
@@ -299,22 +312,24 @@ html, body {
 
 /* 오답 노트에 포함된 코드 블록 스타일 */
 .note-content pre {
-    background-color: #111;
+    background-color: #f0f0f0; /* 코드 블록 배경도 밝게 */
+    color: var(--black);
     padding: 10px;
     border-radius: 4px;
-    white-space: pre-wrap; /* 코드가 길면 자동 줄바꿈 */
+    white-space: pre-wrap; 
     word-break: break-all;
 }
 
 /* 오답 노트 삭제 버튼 스타일 */
 .delete-note-btn {
-    float: right; /* 오른쪽 끝으로 이동 */
+    float: right; 
     cursor: pointer;
     padding: 0 5px;
     border-radius: 3px;
     font-size: 0.8em;
-    user-select: none; /* 클릭 시 텍스트 선택 방지 */
-    transition: background-color 0.2s; /* 부드러운 전환 효과 */
+    user-select: none; 
+    transition: background-color 0.2s; 
+    color: var(--grey-dark);
 }
 
 .delete-note-btn:hover {
@@ -323,38 +338,39 @@ html, body {
 
 /* --- 에러 번역 결과 스타일 --- */
 .error-translation {
-    background-color: var(--grey-dark);
-    border: 1px solid var(--grey-light);
-    border-left: 3px solid #f48771; /* 에러를 의미하는 붉은색 테두리 */
+    background-color: #fff0f0; /* 밝은 붉은색 계열 배경 */
+    border: 1px solid #ffcccc;
+    border-left: 3px solid #cc3333; /* 에러를 의미하는 붉은색 테두리 */
     border-radius: 5px;
     padding: 15px;
     margin: 5px;
 }
 
 .error-title {
-    color: #d16969; /* 에러 제목 색상 */
+    color: #cc3333; /* 에러 제목 색상 */
     margin-top: 0;
     font-size: 1.1em;
 }
 
 .error-description {
-    color: var(--grey-font-color);
-    line-height: 1.5; /* 줄 간격 */
+    color: var(--black);
+    line-height: 1.5; 
 }
 
 /* 원본 에러 메시지 스타일 */
 .original-error-details summary {
     cursor: pointer;
-    color: var(--grey-font-color);
+    color: var(--grey-dark);
     font-size: 0.9em;
     margin-top: 15px;
 }
 
 .original-error {
-    background-color: #111;
+    background-color: #f0f0f0; /* 밝은 배경 */
+    color: var(--black);
     padding: 10px;
     border-radius: 4px;
-    white-space: pre-wrap; /* 코드가 길면 자동 줄바꿈 */
+    white-space: pre-wrap; 
     word-break: break-all;
     margin-top: 5px;
     font-size: small;
@@ -363,7 +379,7 @@ html, body {
 /* --- AI 분석 버튼 및 결과 스타일 (신규) --- */
 
 .ai-analysis-btn {
-    background-color: #569cd6; /* VSCode 블루 */
+    background-color: #007ACC; 
     color: white;
     border: none;
     padding: 8px 15px;
@@ -375,28 +391,29 @@ html, body {
 }
 
 .ai-analysis-btn:hover:not(:disabled) {
-    background-color: #437ba8;
+    background-color: #005f9e;
 }
 
 .ai-analysis-btn:disabled {
-    background-color: #404040;
+    background-color: #cccccc;
+    color: #666666;
     cursor: default;
 }
 
 /* AI 분석 결과 섹션의 헤딩 스타일을 구분합니다. */
-/* index.js의 setNotes에서 첫 번째 h4는 테스트케이스, 두 번째 h4는 AI 분석 결과 헤딩입니다. */
 .note-content h4:nth-of-type(2) { 
-    color: #ffd700 !important; /* 분석 결과 헤딩 색상 (황금색 계열) */
-    border-bottom: 1px solid #3c3c3c;
+    color: #3399ff !important; /* 분석 결과 헤딩 색상 (밝은 파란색 계열) */
+    border-bottom: 1px solid var(--grey-medium);
     padding-bottom: 5px;
     margin-top: 15px;
 }
 
 /* AI 분석 결과 내부의 리스트 스타일 */
 .note-content ul {
-    list-style-type: '🧠 '; /* 취약 개념에 특수 기호 */
+    list-style-type: '🧠 '; 
     padding-left: 20px;
     margin-top: 5px;
+    color: var(--black);
 }
 
 .note-content li {
@@ -405,6 +422,83 @@ html, body {
     padding: 2px 0;
     margin: 0;
     list-style-position: inside;
-    text-indent: -1.5em; /* 리스트 마커와 텍스트 정렬 */
+    text-indent: -1.5em; 
     padding-left: 1.5em;
+    color: var(--black);
+}
+
+
+/* --- [수정] (요청 2) 나의 취약개념 탭 스타일 --- */
+.weak-concept-summary {
+    padding: 15px;
+}
+
+.weak-concept-list {
+    list-style-type: none; 
+    padding-left: 0;
+}
+
+/* <details> 태그 자체의 스타일 */
+.weak-concept-details {
+    border: 1px solid var(--grey-medium);
+    border-radius: 5px;
+    margin-bottom: 10px;
+    background-color: var(--grey-very-light); /* 밝은 배경 */
+}
+
+/* <summary> 태그 (클릭 가능한 헤더) 스타일 */
+.weak-concept-details summary {
+    padding: 10px 15px;
+    cursor: pointer;
+    outline: none;
+    display: flex; 
+    justify-content: space-between;
+    align-items: center;
+    transition: background-color 0.2s; 
+}
+
+/* <details>가 열려있지 않을 때의 호버 효과 */
+.weak-concept-details:not([open]) summary:hover {
+    background-color: var(--grey-medium);
+}
+
+/* <details>가 열려있을 때의 <summary> 스타일 (더 진하게) */
+.weak-concept-details[open] summary {
+    background-color: var(--grey-light); /* 더 밝은 회색 */
+    border-bottom: 1px solid var(--grey-medium);
+}
+
+/* <summary> 내부의 개념 이름 */
+.weak-concept-name {
+    font-size: 1.1em;
+    font-weight: bold;
+    color: var(--black);
+}
+
+/* <summary> 내부의 누적 횟수 */
+.weak-concept-count {
+    font-size: 0.9em;
+    background-color: #cc3333; /* 붉은색 배경 */
+    color: var(--white); /* 흰색 글꼴 */
+    font-weight: bold;
+    padding: 3px 8px;
+    border-radius: 10px;
+    min-width: 50px; 
+    text-align: center;
+}
+
+/* 펼쳐지는 팁 컨텐츠 영역 */
+.weak-concept-content {
+    padding: 15px;
+    background-color: var(--panel-background); /* 흰색 배경 */
+    border-top: 1px solid var(--grey-medium);
+}
+
+/* 팁 컨텐츠 내부의 p 태그 (개별 팁) */
+.weak-concept-content p {
+    margin: 8px 0;
+    line-height: 1.5;
+    color: var(--black);
+    padding-left: 10px;
+    border-left: 2px solid var(--grey-dark);
 }
