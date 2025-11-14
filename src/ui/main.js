@@ -1,6 +1,5 @@
-// main.js
-
-const { app, BrowserWindow, globalShortcut, ipcMain } = require('electron');
+// [수정] shell 모듈을 electron에서 함께 가져옵니다.
+const { app, BrowserWindow, globalShortcut, ipcMain, shell } = require('electron');
 const path = require('path');
 const DirectoryManager = require('./directory-manager.js');
 const dotenv = require('dotenv'); // 환경 변수 로드를 위해 dotenv 사용
@@ -42,9 +41,8 @@ function saveFilePaths() {
     }
     problemBuildsDir = path.resolve(problemBuildsDir);
     
-    // 이전에 import 했으므로 const fs = require('fs'); 는 제거
     fs.writeFileSync(DirectoryManager.getPathsFile(), 
-                     problemBuildsDir, 'utf8');
+                        problemBuildsDir, 'utf8');
 }
 
 function createWindow() {
@@ -63,7 +61,35 @@ function createWindow() {
 
     win.on('closed', () => {
         win = null
-    })
+    });
+
+    // --- [!!! 여기가 핵심입니다 !!!] ---
+    // [수정] 링크 문제 해결을 위한 코드
+    const wc = win.webContents;
+
+    // 1. target="_blank" (새 창) 링크 처리
+    wc.setWindowOpenHandler(({ url }) => {
+        if (url.startsWith('http')) {
+            console.log('Opening new window (setWindowOpenHandler):', url);
+            shell.openExternal(url); // 시스템 기본 브라우저로 열기
+            return { action: 'deny' }; // Electron 앱 내에서는 새 창 띄우기 금지
+        }
+        return { action: 'allow' };
+    });
+
+    // 2. target이 없는 (같은 창) 링크 처리
+    wc.on('will-navigate', (event, url) => {
+        // "http"로 시작하는 링크(즉, 외부 웹사이트)로 이동하려고 하면
+        if (url.startsWith('http')) {
+            console.log('Opening link in same window (will-navigate):', url);
+            // 1. Electron 내부의 네비게이션을 막습니다.
+            event.preventDefault();
+            // 2. shell을 사용해 사용자의 기본 브라우저에서 엽니다.
+            shell.openExternal(url);
+        }
+        // (http가 아닌 file:// 등 내부 이동은 그대로 둡니다)
+    });
+    // --- 링크 문제 해결 코드 끝 ---
 }
 
 function registerSaveCommand() {
@@ -129,7 +155,6 @@ ipcMain.on('open-curriculum-window', (event, conceptsToReview) => {
     });
     curriculumWin.setMenuBarVisibility(false);
     
-    // 개념 목록을 JSON 문자열로 변환하여 쿼리 파라미터로 전달
     const query = { concepts: JSON.stringify(conceptsToReview || []) };
     curriculumWin.loadFile('curriculum.html', { query });
 });
@@ -140,38 +165,57 @@ ipcMain.handle('get-user-data-path', () => {
 });
 
 
-// [추가] AI 분석 요청 핸들러 (Gemini API 호출)
+// AI 분석 요청 핸들러
 ipcMain.handle('request-ai-analysis', async (event, analysisData) => {
     if (!ai) {
         throw new Error("AI Client is not initialized. Check GEMINI_API_KEY.");
     }
 
-    const { problemName, code, results } = analysisData;
-    
-    // --- Gemini 모델을 위한 프롬프트 구성 ---
+    const { problemName, code, results, historicalPatterns } = analysisData;
+    const pastPatterns = historicalPatterns || []; 
+
     const prompt = `
         당신은 코딩 테스트 학습 도우미 AI 'CO-FT'입니다.
-        제공된 정보(문제 이름: ${problemName}, 실패 코드, 테스트 결과)를 바탕으로,
+        제공된 정보(문제 이름, 실패 코드, 테스트 결과, **과거 오답 패턴 목록**)를 바탕으로,
         코딩 초보 학습자를 위한 체계적인 3단계 오답 분석 결과를 제공해야 합니다.
         
         응답은 반드시 다음 JSON 형식으로만 해주세요. 내용이 없더라도 구조는 지켜야 합니다.
+
         {
-          "reasonAnalysis": "<h4>1. 오답 원인 분석 💡</h4><p>...</p>",
-          "patternAnalysis": "<h4>2. 오답 패턴 기록 🚨</h4><p>...</p>",
-          "conceptSummary": "<h4>3. 취약 개념 요약 제시 📚</h4><ul><li>개념 A: 복습 팁</li><li>개념 B: 복습 팁</li></ul>"
+            "reasonAnalysis": "<h4>1. 오답 원인 분석 💡</h4><p>...</p>",
+            "patternAnalysis": "<h4>2. 오답 패턴 기록 🚨</h4><p>...</p>",
+            "conceptSummary": {
+                "title": "<h4>3. 취약 개념 요약 제시 📚</h4>",
+                "concepts": [
+                    {"name": "이진 트리 순회", "tip": "너비 우선 탐색(BFS)은..."},
+                    {"name": "완전 이진 트리의 정의", "tip": "마지막 레벨을 제외한..."},
+                    {"name": "큐(Queue) 자료구조", "tip": "BFS를 구현할 때 필수적인..."}
+                ]
+            }
         }
         
         <문제 및 실패 정보>
         문제 이름: ${problemName}
         제출 코드:\n${code}
         실패 테스트 결과: ${JSON.stringify(results, null, 2)}
+        과거 오답 패턴 목록: ${JSON.stringify(pastPatterns)} 
         
         <분석 요구사항>
-        1. 오답 원인 분석: 코드가 왜 실패했는지 (논리 오류, 엣지 케이스 처리 실패 등)를 구체적이고 쉽게, 그리고 **존댓말**로 설명.
-        2. 오답 패턴 기록: 이 학습자가 흔히 저지르는 실수나 논리적 패턴(예: 배열 인덱스 오류, 반복문 조건 오류, 재귀 탈출 조건 누락 등)을 추측하여 제시.
-        3. 취약 개념 요약 제시: 해당 오답을 해결하기 위해 꼭 복습해야 할 핵심 알고리즘 및 자료구조 개념을 3가지 내외로 제시하고, 간단한 복습 팁을 포함. (HTML ul, li 태그 사용)
+        1. 오답 원인 분석 (reasonAnalysis): 
+            - 코드가 왜 실패했는지 (논리 오류, 엣지 케이스 처리 실패 등)를 구체적이고 쉽게, 그리고 **존댓말**로 설명.
         
-        모든 응답은 HTML 형식으로 포맷팅하여 JSON 필드에 넣어주세요.
+        2. 취약 개념 요약 제시 (conceptSummary): 
+            - '1. 오답 원인 분석'과 연관되어, 해당 오답을 해결하기 위해 꼭 복습해야 할 핵심 알고리즘 및 자료구조 개념을 **JSON "concepts" 배열**로 제시.
+            - "name" 필드: 취약 개념의 이름 (예: "이진 트리 순회 (Binary Tree Traversal)")
+            - "tip" 필드: 간단한 복습 팁 (예: "너비 우선 탐색(BFS)은...")
+            - **이 "concepts" 배열은 '나의 취약개념' 탭에서 누적 집계되므로, "name"을 일관성 있게 작성하는 것이 매우 중요합니다.** (예: '큐' vs 'Queue' -> '큐(Queue) 자료구조'로 통일)
+
+        3. 오답 패턴 기록 (patternAnalysis):
+            - **'과거 오답 패턴 목록'**과 **'현재 제출 코드'**를 함께 분석.
+            - 현재 코드의 실수 유형을 **간단한 키워드**로 식별 (예: '문법 오류', '변수 사용 오류', '클래스 이해 부족', '인덱스 범위 초과' 등).
+            - 이 키워드가 과거 패턴 목록에 얼마나 자주 등장하는지 요약.
+        
+        reasonAnalysis, patternAnalysis, conceptSummary.title 필드는 HTML 형식으로 포맷팅하여 JSON 필드에 넣어주세요.
     `;
 
     try {
@@ -183,7 +227,6 @@ ipcMain.handle('request-ai-analysis', async (event, analysisData) => {
             }
         });
 
-        // JSON 문자열 클리닝 및 파싱
         const jsonText = response.text.trim().replace(/^```json|```$/g, '').trim();
         const analysis = JSON.parse(jsonText);
         return analysis;
@@ -191,5 +234,102 @@ ipcMain.handle('request-ai-analysis', async (event, analysisData) => {
     } catch (error) {
         console.error('Gemini API 호출 및 분석 실패:', error);
         throw new Error(`AI 분석 실패: ${error.message}`);
+    }
+});
+
+// 문제 핵심 개념 분석 핸들러
+ipcMain.handle('request-problem-concepts', async (event, data) => {
+    if (!ai) {
+        throw new Error("AI Client is not initialized. Check GEMINI_API_KEY.");
+    }
+
+    const { problemName, description } = data;
+
+    const prompt = `
+        당신은 코딩 테스트 학습 도우미 AI 'CO-FT'입니다.
+        현재 학습자가 '${problemName}' 문제를 보고 있습니다.
+
+        <문제 설명>
+        ${description}
+        </<문제 설명>
+
+        이 문제를 풀기 위해 반드시 알아야 할 **핵심 알고리즘 및 자료구조 개념**들을 설명해주세요.
+        코딩 초보자도 이해할 수 있도록 쉬운 말로, 존댓말로 설명해야 합니다.
+
+        응답은 다음 요구사항을 포함한 **HTML 문자열** 형식으로만 해주세요.
+
+        1.  <h4>${problemName} 문제의 핵심 개념 💡</h4>
+        2.  <p>이 문제를 해결하기 위해 필요한 핵심 개념은 다음과 같습니다.</p>
+        3.  <ul>
+                <li><strong>핵심 개념 1 (예: 해시 맵):</strong> 왜 이 개념이 필요한지, 어떻게 활용되는지 1-2 문장으로 설명.</li>
+                <li><strong>핵심 개념 2 (예: 반복문):</strong> 왜 이 개념이 필요한지, 어떻게 활용되는지 1-2 문장으로 설명.
+            </ul>
+        4.  <p>이 개념들을 복습하시면 문제 해결에 큰 도움이 될 것입니다.</p>
+    `;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: [{ role: "user", parts: [{ text: prompt }] }]
+        });
+
+        const htmlResponse = response.text.trim();
+        return htmlResponse;
+
+    } catch (error) {
+        console.error('Gemini API (concepts) 호출 실패:', error);
+        throw new Error(`AI 개념 분석 실패: ${error.message}`);
+    }
+});
+
+// 관련 문제 추천 핸들러
+ipcMain.handle('request-related-problems', async (event, data) => {
+    if (!ai) {
+        throw new Error("AI Client is not initialized. Check GEMINI_API_KEY.");
+    }
+
+    const { problemName } = data;
+
+    const prompt = `
+        당신은 코딩 테스트 학습 도우미 AI 'CO-FT'입니다.
+        현재 학습자가 '${problemName}' 문제를 풀고 있습니다.
+        이 문제와 **개념적으로 연관성이 높으면서, 난이도는 더 쉬운** 연습 문제 3가지를 추천해주세요.
+
+        응답은 다음 요구사항을 포함한 **HTML 문자열** 형식으로만 해주세요.
+        - LeetCode, 백준 등 실제 존재하는 문제면 좋습니다.
+        - 왜 이 문제를 추천하는지 간단한 이유를 포함해주세요.
+        - (중요) 3단계 풀이 기능을 위해, 각 문제 항목은 <li> 태그로 감싸주세요.
+        
+        - [중요!] 문제 제목(예: "LeetCode 102...")은 반드시 <a> 태그로 감싸고,
+        - 실제 해당 문제 페이지로 연결되는 href 속성 (예: "https://leetcode.com/problems/...")을 포함해야 합니다.
+        - 또한, <a> 태그에 target="_blank" 속성을 추가해주세요.
+
+        <예시 응답 형식>
+        <h4>'${problemName}' 관련 기초 문제 🚀</h4>
+        <p>이 문제와 관련된 기초 개념을 다질 수 있는 문제들입니다.</p>
+        <ul>
+            <li>
+                <strong>문제 1 <a href="https://leetcode.com/problems/two-sum/" target="_blank">(LeetCode 1. Two Sum)</a>:</strong>
+                (이유) 이 문제는 ... 개념을 연습하기 좋습니다.
+            </li>
+            <li>
+                <strong>문제 2 <a href="https://www.acmicpc.net/problem/10828" target="_blank">(백준 10828. 스택)</a>:</strong>
+                (이유) ...
+            </li>
+        </ul>
+    `;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: [{ role: "user", parts: [{ text: prompt }] }]
+        });
+
+        const htmlResponse = response.text.trim();
+        return htmlResponse;
+
+    } catch (error) {
+        console.error('Gemini API (related problems) 호출 실패:', error);
+        throw new Error(`AI 관련 문제 추천 실패: ${error.message}`);
     }
 });
