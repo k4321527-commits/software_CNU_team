@@ -157,7 +157,10 @@ function setTestResults(results) {
     div.innerHTML = html;
     document.getElementById('tab-test-results-button').click();
 
-    const allTestsPassed = results.tests.every(test => test.status === "Passed");
+    // 성공으로 간주되는 상태 목록
+    const passStatuses = ['Pass', 'Passed', 'Success', 'Ok', 'OK'];
+    const allTestsPassed = results.tests.every(test => passStatuses.includes(test.status));
+
     if (!allTestsPassed) {
         if (noteManager) {
             console.log("Test failed. Saving incorrect answer note.");
@@ -395,11 +398,30 @@ function setNotes(problemName) {
         return;
     }
     content.innerHTML = notes.map(note => {
-        const failedTest = note.results.tests.find(t => t.status !== 'Passed');
+        // 실패한 테스트 찾기: 성공 상태가 아닌 첫 번째 테스트
+        const passStatuses = ['Pass', 'Passed', 'Success', 'Ok', 'OK'];
+        const failedTest = note.results.tests.find(t => !passStatuses.includes(t.status));
+
+        // 테스트 정보 추출
         const testName = failedTest ? failedTest.testcase_name : (note.results.testcase_filter_name || "저장");
-        const input = (failedTest && failedTest.input) ? JSON.stringify(failedTest.input) : 'N/A';
-        const expected = (failedTest && failedTest.expected) ? JSON.stringify(failedTest.expected) : 'N/A';
-        const actual = (failedTest && failedTest.actual) ? JSON.stringify(failedTest.actual) : 'N/A';
+
+        // 입력값 추출: testcase_file에서 읽어오기
+        let input = 'N/A';
+        if (failedTest && failedTest.testcase_file) {
+            try {
+                const testcaseContent = file.readFileSync(failedTest.testcase_file, 'utf8');
+                const lines = testcaseContent.trim().split('\n');
+                // 마지막 줄은 expected output이므로 제외하고 나머지가 input
+                if (lines.length > 1) {
+                    input = lines.slice(0, -1).join(', ');
+                }
+            } catch (err) {
+                console.error(`Error reading testcase file: ${err}`);
+            }
+        }
+
+        const expected = (failedTest && failedTest.expected !== undefined) ? JSON.stringify(failedTest.expected) : 'N/A';
+        const actual = (failedTest && failedTest.actual !== undefined) ? JSON.stringify(failedTest.actual) : 'N/A';
         
         const aiAnalysis = note.aiAnalysis || null;
         let aiAnalysisHtml = '';
