@@ -1,20 +1,20 @@
-// [수정] shell 모듈을 electron에서 함께 가져옵니다.
 const { app, BrowserWindow, globalShortcut, ipcMain, shell } = require('electron');
 const path = require('path');
 const DirectoryManager = require('./directory-manager.js');
-const dotenv = require('dotenv'); // 환경 변수 로드를 위해 dotenv 사용
-const { GoogleGenAI } = require('@google/genai'); // Gemini SDK 사용
-const fs = require('fs'); // 파일 시스템 모듈 추가
+const dotenv = require('dotenv');
+const { GoogleGenAI } = require('@google/genai');
+const fs = require('fs');
 
-dotenv.config(); // .env 파일 로드
+dotenv.config();
 
-// Gemini API 클라이언트 초기화
+// =========================================================
+// 1. Gemini AI 초기화
+// =========================================================
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY; 
 let ai = null;
 
 if (GEMINI_API_KEY) {
     try {
-        // AI 클라이언트 초기화
         ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
         console.log("Gemini AI Client initialized successfully.");
     } catch (e) {
@@ -23,6 +23,10 @@ if (GEMINI_API_KEY) {
 } else {
     console.warn("GEMINI_API_KEY is missing. AI analysis will be skipped.");
 }
+
+// =========================================================
+// 2. 기본 설정 및 창 관리
+// =========================================================
 
 saveFilePaths();
 
@@ -34,15 +38,9 @@ function saveFilePaths() {
     
     if (problemBuildsArg && problemBuildsArg.length > 0) {
         problemBuildsDir = problemBuildsArg.split('=')[1];
-        console.log("Setting problemBuildsDir to " + problemBuildsDir);
-    } else {
-        console.log("problemBuildsDir was not set. Using default " + problemBuildsDir);
-        console.log("process.argv: " + process.argv);
     }
     problemBuildsDir = path.resolve(problemBuildsDir);
-    
-    fs.writeFileSync(DirectoryManager.getPathsFile(), 
-                        problemBuildsDir, 'utf8');
+    fs.writeFileSync(DirectoryManager.getPathsFile(), problemBuildsDir, 'utf8');
 }
 
 function createWindow() {
@@ -63,273 +61,350 @@ function createWindow() {
         win = null
     });
 
-    // --- [!!! 여기가 핵심입니다 !!!] ---
-    // [수정] 링크 문제 해결을 위한 코드
+    // [창 관리] 외부 링크(http) 클릭 시 프로그램 내부 팝업 창(Child Window)으로 열기
     const wc = win.webContents;
-
-    // 1. target="_blank" (새 창) 링크 처리
     wc.setWindowOpenHandler(({ url }) => {
         if (url.startsWith('http')) {
-            console.log('Opening new window (setWindowOpenHandler):', url);
-            shell.openExternal(url); // 시스템 기본 브라우저로 열기
-            return { action: 'deny' }; // Electron 앱 내에서는 새 창 띄우기 금지
+            const childWin = new BrowserWindow({
+                width: 1200,
+                height: 900,
+                parent: win, 
+                modal: false, 
+                title: "참고 자료 / 문제 풀이",
+                webPreferences: { 
+                    nodeIntegration: false, 
+                    contextIsolation: true 
+                }
+            });
+            childWin.loadURL(url);
+            childWin.setMenuBarVisibility(false);
+            return { action: 'deny' }; // 기본 브라우저 팝업 차단하고 위에서 만든 창 띄움
         }
         return { action: 'allow' };
     });
-
-    // 2. target이 없는 (같은 창) 링크 처리
-    wc.on('will-navigate', (event, url) => {
-        // "http"로 시작하는 링크(즉, 외부 웹사이트)로 이동하려고 하면
-        if (url.startsWith('http')) {
-            console.log('Opening link in same window (will-navigate):', url);
-            // 1. Electron 내부의 네비게이션을 막습니다.
-            event.preventDefault();
-            // 2. shell을 사용해 사용자의 기본 브라우저에서 엽니다.
-            shell.openExternal(url);
-        }
-        // (http가 아닌 file:// 등 내부 이동은 그대로 둡니다)
-    });
-    // --- 링크 문제 해결 코드 끝 ---
 }
 
+// 단축키 등록
 function registerSaveCommand() {
-    const ret = globalShortcut.register('CommandOrControl+S', () => {
-        console.log('CommandOrControl+S is pressed')
-        win.webContents.send('save-command')
-    })
-    if (!ret) { console.log('Registration failed!') }
+    globalShortcut.register('CommandOrControl+S', () => win.webContents.send('save-command'));
 }
-
 function registerRunCommand() {
-    const ret = globalShortcut.register('CommandOrControl+R', () => {
-        console.log('CommandOrControl+R is pressed')
-        win.webContents.send('run-command')
-    })
-    if (!ret) { console.log('Registration failed!') }
+    globalShortcut.register('CommandOrControl+R', () => win.webContents.send('run-command'));
 }
-
 function registerCustomTestcaseCommand() {
-    const ret = globalShortcut.register('CommandOrControl+T', () => {
-        console.log('CommandOrControl+T is pressed')
-        win.webContents.send('custom-testcase-command')
-    })
-    if (!ret) { console.log('Registration failed!') }
-}
-
-function registerCommands() {
-    registerSaveCommand();
-    registerRunCommand();
-    registerCustomTestcaseCommand();
+    globalShortcut.register('CommandOrControl+T', () => win.webContents.send('custom-testcase-command'));
 }
 
 app.whenReady().then(() => {
-    createWindow()
+    createWindow();
     app.on('activate', () => {
-        if (BrowserWindow.getAllWindows().length === 0) {
-            createWindow()
-        }
-    })
-    registerCommands();
+        if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    });
+    registerSaveCommand();
+    registerRunCommand();
+    registerCustomTestcaseCommand();
 });
 
 app.on('window-all-closed', () => {
-    if (process.platform !== 'darwin') {
-        app.quit()
-    }
-})
-
-app.on('will-quit', () => {
-    globalShortcut.unregisterAll()
-})
-
-// 커리큘럼 창을 여는 IPC 핸들러
-ipcMain.on('open-curriculum-window', (event, conceptsToReview) => {
-    const curriculumWin = new BrowserWindow({
-        width: 800,
-        height: 600,
-        title: '학습 커리큘럼',
-        webPreferences: {
-            nodeIntegration: true,
-            contextIsolation: false
-        }
-    });
-    curriculumWin.setMenuBarVisibility(false);
-    
-    const query = { concepts: JSON.stringify(conceptsToReview || []) };
-    curriculumWin.loadFile('curriculum.html', { query });
+    if (process.platform !== 'darwin') app.quit();
 });
 
-// 오답 노트 파일 경로를 요청하면 응답해주는 핸들러
-ipcMain.handle('get-user-data-path', () => {
-    return app.getPath('userData');
-});
+app.on('will-quit', () => globalShortcut.unregisterAll());
 
+// =========================================================
+// 4. IPC 핸들러 (AI 기능 구현)
+// =========================================================
 
-// AI 분석 요청 핸들러
+ipcMain.handle('get-user-data-path', () => app.getPath('userData'));
+
+// [AI: 오답 노트 분석]
 ipcMain.handle('request-ai-analysis', async (event, analysisData) => {
-    if (!ai) {
-        throw new Error("AI Client is not initialized. Check GEMINI_API_KEY.");
-    }
-
+    if (!ai) throw new Error("AI Key Missing");
     const { problemName, code, results, historicalPatterns } = analysisData;
-    const pastPatterns = historicalPatterns || []; 
-
+    
     const prompt = `
-        당신은 코딩 테스트 학습 도우미 AI 'CO-FT'입니다.
-        제공된 정보(문제 이름, 실패 코드, 테스트 결과, **과거 오답 패턴 목록**)를 바탕으로,
-        코딩 초보 학습자를 위한 체계적인 3단계 오답 분석 결과를 제공해야 합니다.
+        문제: ${problemName}
+        코드:\n${code}
+        결과: ${JSON.stringify(results)}
         
-        응답은 반드시 다음 JSON 형식으로만 해주세요. 내용이 없더라도 구조는 지켜야 합니다.
-
+        JSON 포맷으로 오답 분석 해줘:
         {
-            "reasonAnalysis": "<h4>1. 오답 원인 분석 💡</h4><p>...</p>",
-            "patternAnalysis": "<h4>2. 오답 패턴 기록 🚨</h4><p>...</p>",
+            "reasonAnalysis": "<h4>1. 원인 💡</h4><p>...</p>",
+            "patternAnalysis": "<h4>2. 패턴 🚨</h4><p>...</p>",
             "conceptSummary": {
-                "title": "<h4>3. 취약 개념 요약 제시 📚</h4>",
-                "concepts": [
-                    {"name": "이진 트리 순회", "tip": "너비 우선 탐색(BFS)은..."},
-                    {"name": "완전 이진 트리의 정의", "tip": "마지막 레벨을 제외한..."},
-                    {"name": "큐(Queue) 자료구조", "tip": "BFS를 구현할 때 필수적인..."}
-                ]
+                "title": "<h4>3. 개념 📚</h4>",
+                "concepts": [{"name": "개념명", "tip": "팁"}]
             }
         }
-        
-        <문제 및 실패 정보>
-        문제 이름: ${problemName}
-        제출 코드:\n${code}
-        실패 테스트 결과: ${JSON.stringify(results, null, 2)}
-        과거 오답 패턴 목록: ${JSON.stringify(pastPatterns)} 
-        
-        <분석 요구사항>
-        1. 오답 원인 분석 (reasonAnalysis): 
-            - 코드가 왜 실패했는지 (논리 오류, 엣지 케이스 처리 실패 등)를 구체적이고 쉽게, 그리고 **존댓말**로 설명.
-        
-        2. 취약 개념 요약 제시 (conceptSummary): 
-            - '1. 오답 원인 분석'과 연관되어, 해당 오답을 해결하기 위해 꼭 복습해야 할 핵심 알고리즘 및 자료구조 개념을 **JSON "concepts" 배열**로 제시.
-            - "name" 필드: 취약 개념의 이름 (예: "이진 트리 순회 (Binary Tree Traversal)")
-            - "tip" 필드: 간단한 복습 팁 (예: "너비 우선 탐색(BFS)은...")
-            - **이 "concepts" 배열은 '나의 취약개념' 탭에서 누적 집계되므로, "name"을 일관성 있게 작성하는 것이 매우 중요합니다.** (예: '큐' vs 'Queue' -> '큐(Queue) 자료구조'로 통일)
+        **주의: 뇌 모양 이모지(🧠)는 절대 사용하지 마세요.**
+    `;
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        config: { responseMimeType: "application/json" }
+    });
+    return JSON.parse(response.text.replace(/^```json|```$/g, ''));
+});
 
-        3. 오답 패턴 기록 (patternAnalysis):
-            - **'과거 오답 패턴 목록'**과 **'현재 제출 코드'**를 함께 분석.
-            - 현재 코드의 실수 유형을 **간단한 키워드**로 식별 (예: '문법 오류', '변수 사용 오류', '클래스 이해 부족', '인덱스 범위 초과' 등).
-            - 이 키워드가 과거 패턴 목록에 얼마나 자주 등장하는지 요약.
+// [AI: 문제 핵심 개념]
+ipcMain.handle('request-problem-concepts', async (event, data) => {
+    if (!ai) throw new Error("AI Key Missing");
+    const prompt = `
+        문제: ${data.problemName}
+        설명: ${data.description}
+        핵심 개념을 HTML(h4, ul, li, p)로 설명해줘.
+        아이콘은 💡, 📚, 📌 같은 것만 사용하고 **뇌 모양 이모지는 쓰지 마.**
+    `;
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [{ role: "user", parts: [{ text: prompt }] }]
+    });
+    return response.text.trim();
+});
+
+// [핵심 수정] AI: 관련 문제 추천 (3:1 하이브리드 외부 추천)
+// LeetCode(OpenLeetCode) 3문제 + 백준 1문제
+ipcMain.handle('request-related-problems', async (event, data) => {
+    if (!ai) throw new Error("AI Key Missing");
+
+    const { problemName } = data;
+
+    const prompt = `
+        당신은 코딩 테스트 멘토입니다.
+        현재 학습자가 AI 생성 문제 '${problemName}'을(를) 풀고 있습니다.
         
-        reasonAnalysis, patternAnalysis, conceptSummary.title 필드는 HTML 형식으로 포맷팅하여 JSON 필드에 넣어주세요.
+        다음 규칙에 맞춰 총 **4개의 추천 문제**를 선정해주세요:
+        
+        **[요청 사항]**
+        1. **LeetCode(OpenLeetCode) 3개**: 가장 연관성 높은 LeetCode 실제 문제 URL.
+        2. **Baekjoon(백준) 1개**: 한국의 백준(BOJ) 사이트에서 가장 유사한 문제 URL.
+        
+        **응답 형식 (HTML) - 반드시 아래 디자인을 따를 것:**
+        
+        <h4 style="margin: 15px 0 10px 0; color: #333; font-size:1.1em;">🌐 OpenLeetCode 추천 (LeetCode)</h4>
+        <div style="margin-bottom: 15px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-globe" style="color: #007ACC;"></i>
+                <a href="LEETCODE_URL" target="_blank" style="font-weight: bold; color: #007ACC; text-decoration: none; font-size:1.05em;">LEETCODE_PROBLEM_TITLE</a>
+                <span style="font-size: 0.85em; color: #666;">(Easy/Medium)</span>
+            </div>
+            <div style="margin-left: 24px; font-size: 0.9em; color: #555; margin-top:4px;">- 추천 이유: ...</div>
+        </div>
+        <h4 style="margin: 25px 0 10px 0; color: #333; font-size:1.1em;">🏆 실전 연습 (백준)</h4>
+        <div style="margin-bottom: 15px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-trophy" style="color: #e67e22;"></i>
+                <a href="BOJ_URL" target="_blank" style="font-weight: bold; color: #28a745; text-decoration: none; font-size:1.05em;">백준 문제 제목</a>
+                <span style="font-size: 0.85em; color: #666;">(Gold/Silver)</span>
+            </div>
+            <div style="margin-left: 24px; font-size: 0.9em; color: #555; margin-top:4px;">- 추천 이유: ...</div>
+        </div>
+
+        **규칙:**
+        1. 실제 접속 가능한 URL이어야 합니다.
+        2. **target="_blank"** 속성을 반드시 포함하세요. (새 창 열기)
+        3. **뇌 이모지(🧠)는 절대 사용하지 마세요.** 깔끔한 아이콘만 사용하세요.
+    `;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: [{ role: "user", parts: [{ text: prompt }] }]
+        });
+        return response.text.trim();
+    } catch (error) {
+        throw new Error(`추천 실패: ${error.message}`);
+    }
+});
+
+// [AI: CO-FT 문제 생성 (제목 포함)]
+ipcMain.handle('generate-co-ft-problem', async (event, difficulty) => {
+    if (!ai) throw new Error("AI Key Missing");
+
+    const prompt = `
+        C++ 알고리즘 연습 문제 생성. 난이도: ${difficulty}.
+        
+        응답은 반드시 다음 JSON 포맷:
+        {
+            "title": "문제 제목 (예: 문자열 뒤집기)",
+            "htmlContent": "문제 설명 HTML (h2, p, pre 등 사용)",
+            "starterCode": "class Solution { ... }",
+            "solutionLogic": "정답 로직 설명"
+        }
+    `;
+    
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        config: { responseMimeType: "application/json" }
+    });
+    
+    return JSON.parse(response.text.replace(/^```json|```$/g, ''));
+});
+
+// [AI: CO-FT 정답 검증 (isPass 반환, 마크다운 제거, 뇌 아이콘 금지)]
+ipcMain.handle('verify-co-ft-solution', async (event, { problem, userCode }) => {
+    if (!ai) throw new Error("AI Key Missing");
+
+    const prompt = `
+        [문제 정보]
+        ${JSON.stringify(problem)}
+        
+        [사용자 제출 코드]
+        ${userCode}
+        
+        위 코드를 컴파일러처럼 엄격하게 채점해줘.
+        
+        응답은 반드시 다음 **JSON 포맷**으로만 줘:
+        {
+            "isPass": true 또는 false, (성공이면 true, 컴파일 에러나 틀리면 false)
+            "htmlReport": "채점 결과 HTML 문자열"
+        }
+        
+        [htmlReport 작성 규칙]
+        1. <h3>결과: <span style='color: ...'>통과 / 실패 / 컴파일 에러</span></h3>
+        2. <h4>🤖 분석</h4>: 시간복잡도, 로직 오류 등 상세 설명
+        3. <h4>💡 피드백</h4>: 개선점 제안
+        4. 아이콘은 🤖, ✅, ❌ 만 사용 (**뇌 이모지 🧠 금지**)
+        5. 마크다운(\`\`\`) 절대 쓰지 말고 순수 HTML만 작성
     `;
 
     try {
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: [{ role: "user", parts: [{ text: prompt }] }],
-            config: {
-                responseMimeType: "application/json" // JSON 모드 요청
-            }
+            config: { responseMimeType: "application/json" }
         });
 
-        const jsonText = response.text.trim().replace(/^```json|```$/g, '').trim();
-        const analysis = JSON.parse(jsonText);
-        return analysis;
+        let result = JSON.parse(response.text);
         
-    } catch (error) {
-        console.error('Gemini API 호출 및 분석 실패:', error);
-        throw new Error(`AI 분석 실패: ${error.message}`);
+        // 마크다운 태그 2차 세탁
+        if (result.htmlReport) {
+            result.htmlReport = result.htmlReport.replace(/```html/g, '').replace(/```/g, '').trim();
+        }
+
+        return result;
+
+    } catch (e) {
+        console.error(e);
+        return { 
+            isPass: false, 
+            htmlReport: `<h3 style="color:red">❌ AI 분석 오류</h3><p>${e.message}</p>` 
+        };
     }
 });
 
-// 문제 핵심 개념 분석 핸들러
-ipcMain.handle('request-problem-concepts', async (event, data) => {
-    if (!ai) {
-        throw new Error("AI Client is not initialized. Check GEMINI_API_KEY.");
+// [커리큘럼: 목차 생성 (개수 맞춤)]
+ipcMain.handle('generate-curriculum', async (event, weakConcepts) => {
+    if (!ai) throw new Error("AI Key Missing");
+
+    // 취약점이 없으면 빈 배열
+    if (!weakConcepts || weakConcepts.length === 0) {
+        return [];
     }
 
-    const { problemName, description } = data;
-
+    const conceptsStr = weakConcepts.join(', ');
+    const count = weakConcepts.length; // 취약점 개수
+    
     const prompt = `
-        당신은 코딩 테스트 학습 도우미 AI 'CO-FT'입니다.
-        현재 학습자가 '${problemName}' 문제를 보고 있습니다.
+        학습자의 취약점 ${count}개: [${conceptsStr}]
+        
+        이 약점을 보완할 **정확히 ${count}단계**의 학습 커리큘럼을 짜줘.
+        
+        응답은 반드시 아래 JSON 배열 형식 (항목 ${count}개):
+        [
+            {"topic": "주제명", "desc": "간단 설명"},
+            ...
+        ]
+    `;
 
-        <문제 설명>
-        ${description}
-        </<문제 설명>
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            config: { responseMimeType: "application/json" }
+        });
+        return JSON.parse(response.text.replace(/^```json|```$/g, ''));
+    } catch (e) {
+        return [];
+    }
+});
 
-        이 문제를 풀기 위해 반드시 알아야 할 **핵심 알고리즘 및 자료구조 개념**들을 설명해주세요.
-        코딩 초보자도 이해할 수 있도록 쉬운 말로, 존댓말로 설명해야 합니다.
+// [커리큘럼 학습 컨텐츠 추천]
+ipcMain.handle('request-learning-content', async (event, { topic, type }) => {
+    if (!ai) throw new Error("AI Key Missing");
 
-        응답은 다음 요구사항을 포함한 **HTML 문자열** 형식으로만 해주세요.
+    let prompt = "";
 
-        1.  <h4>${problemName} 문제의 핵심 개념 💡</h4>
-        2.  <p>이 문제를 해결하기 위해 필요한 핵심 개념은 다음과 같습니다.</p>
-        3.  <ul>
-                <li><strong>핵심 개념 1 (예: 해시 맵):</strong> 왜 이 개념이 필요한지, 어떻게 활용되는지 1-2 문장으로 설명.</li>
-                <li><strong>핵심 개념 2 (예: 반복문):</strong> 왜 이 개념이 필요한지, 어떻게 활용되는지 1-2 문장으로 설명.
+    if (type === 'video') {
+        prompt = `
+            학습 주제: '${topic}'
+            초보자를 위한 YouTube 영상 검색어 3가지를 추천해줘.
+            
+            응답 HTML:
+            <h3>📺 '${topic}' 추천 영상</h3>
+            <ul>
+                <li>
+                    <strong>1. [검색어]</strong><br>
+                    <a href="https://www.youtube.com/results?search_query=${encodeURIComponent(topic + ' 강의')}" target="_blank" style="color:#ff0000; text-decoration:none;">▶ 유튜브 검색 결과 보러가기</a>
+                </li>
             </ul>
-        4.  <p>이 개념들을 복습하시면 문제 해결에 큰 도움이 될 것입니다.</p>
-    `;
+        `;
+    } else {
+        prompt = `
+            학습 주제: '${topic}'
+            연습하기 좋은 **백준(BOJ)** 또는 **LeetCode** 문제 3개를 추천해줘.
+            
+            응답 HTML:
+            <h3>📝 '${topic}' 실전 문제</h3>
+            <ul>
+                <li>
+                    <strong>1. 문제명 (사이트)</strong><br>
+                    - 링크: <a href="문제URL" target="_blank" style="color:#007ACC; font-weight:bold;">문제 바로가기</a>
+                </li>
+            </ul>
+        `;
+    }
 
     try {
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: [{ role: "user", parts: [{ text: prompt }] }]
         });
-
-        const htmlResponse = response.text.trim();
-        return htmlResponse;
-
-    } catch (error) {
-        console.error('Gemini API (concepts) 호출 실패:', error);
-        throw new Error(`AI 개념 분석 실패: ${error.message}`);
+        return response.text;
+    } catch (e) {
+        return `<p>오류 발생: ${e.message}</p>`;
     }
 });
 
-// 관련 문제 추천 핸들러
-ipcMain.handle('request-related-problems', async (event, data) => {
-    if (!ai) {
-        throw new Error("AI Client is not initialized. Check GEMINI_API_KEY.");
-    }
-
-    const { problemName } = data;
-
-    const prompt = `
-        당신은 코딩 테스트 학습 도우미 AI 'CO-FT'입니다.
-        현재 학습자가 '${problemName}' 문제를 풀고 있습니다.
-        이 문제와 **개념적으로 연관성이 높으면서, 난이도는 더 쉬운** 연습 문제 3가지를 추천해주세요.
-
-        응답은 다음 요구사항을 포함한 **HTML 문자열** 형식으로만 해주세요.
-        - LeetCode, 백준 등 실제 존재하는 문제면 좋습니다.
-        - 왜 이 문제를 추천하는지 간단한 이유를 포함해주세요.
-        - (중요) 3단계 풀이 기능을 위해, 각 문제 항목은 <li> 태그로 감싸주세요.
-        
-        - [중요!] 문제 제목(예: "LeetCode 102...")은 반드시 <a> 태그로 감싸고,
-        - 실제 해당 문제 페이지로 연결되는 href 속성 (예: "https://leetcode.com/problems/...")을 포함해야 합니다.
-        - 또한, <a> 태그에 target="_blank" 속성을 추가해주세요.
-
-        <예시 응답 형식>
-        <h4>'${problemName}' 관련 기초 문제 🚀</h4>
-        <p>이 문제와 관련된 기초 개념을 다질 수 있는 문제들입니다.</p>
-        <ul>
-            <li>
-                <strong>문제 1 <a href="https://leetcode.com/problems/two-sum/" target="_blank">(LeetCode 1. Two Sum)</a>:</strong>
-                (이유) 이 문제는 ... 개념을 연습하기 좋습니다.
-            </li>
-            <li>
-                <strong>문제 2 <a href="https://www.acmicpc.net/problem/10828" target="_blank">(백준 10828. 스택)</a>:</strong>
-                (이유) ...
-            </li>
-        </ul>
-    `;
-
-    try {
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: [{ role: "user", parts: [{ text: prompt }] }]
-        });
-
-        const htmlResponse = response.text.trim();
-        return htmlResponse;
-
-    } catch (error) {
-        console.error('Gemini API (related problems) 호출 실패:', error);
-        throw new Error(`AI 관련 문제 추천 실패: ${error.message}`);
-    }
+// [커리큘럼 창 열기]
+ipcMain.on('open-curriculum-window', (event, conceptsToReview) => {
+    const curriculumWin = new BrowserWindow({
+        width: 1300,
+        height: 800,
+        title: '학습 커리큘럼',
+        webPreferences: {
+            nodeIntegration: true, 
+            contextIsolation: false
+        }
+    });
+    curriculumWin.setMenuBarVisibility(false);
+    
+    // 외부 링크는 내부 팝업으로
+    curriculumWin.webContents.setWindowOpenHandler(({ url }) => {
+        if (url.startsWith('http')) {
+            const childWin = new BrowserWindow({
+                width: 1200, height: 900, parent: curriculumWin, modal: false,
+                title: "학습 자료",
+                webPreferences: { nodeIntegration: false, contextIsolation: true }
+            });
+            childWin.loadURL(url);
+            childWin.setMenuBarVisibility(false);
+            return { action: 'deny' };
+        }
+        return { action: 'allow' };
+    });
+    
+    const query = { concepts: JSON.stringify(conceptsToReview || []) };
+    curriculumWin.loadFile('curriculum.html', { query });
 });
