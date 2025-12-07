@@ -1,8 +1,4 @@
-/**
- * 에러 번역 규칙
- * key: 에러 메시지에서 찾을 '영어 에러 코드' (패턴)
- * value: { title: "한글 에러명", description: "쉬운 설명과 해결책" }
- */
+
 const translationRules = {
     "error C2143": { // 한글 대신 영어 에러 코드로 검색
         title: "문법 오류: 세미콜론(;) 누락 또는 구문 오류",
