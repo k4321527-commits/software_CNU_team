@@ -1,60 +1,93 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;">
-    <title>OpenLeetCode</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data:;">
+    <title>CO-FT (사용자 맞춤 코딩 프로그램)</title>
     <link rel="stylesheet" type="text/css" href="styles.css">
-    <script src="index.js"></script>
 </head>
 
 <body>
     <div class="control-panel">
         <label class="label problem-label" for="problem-select">Problem:</label>
-        <select id="problem-select">
-        </select>
-        <button id="run-button">▶ Run</button>
-        <button id="custom-testcase-button">▶ Custom Testcase</button>
-        <button id="save-button">Save</button>
+        <select id="problem-select"></select>
         
-        <button id="add-note-button">오답 노트 추가</button>
-        <button id="curriculum-button">🌟 개인 맞춤 커리큘럼</button>
+        <button id="run-button" class="gray-btn-style">▶ Run</button>
+        <button id="verify-button" class="gray-btn-style" style="display:none;">
+            <i class="fas fa-robot"></i> ▶ Run
+        </button>
+        <button id="custom-testcase-button" class="gray-btn-style">▶ Custom Testcase</button>
+        <button id="save-button" class="gray-btn-style">Save</button>
+        <button id="add-note-button" class="gray-btn-style">오답 노트 추가</button>
+        <button id="curriculum-button" class="gray-btn-style" style="background-color: #007ACC !important; color: white !important; border: 1px solid #005f9e !important;">
+            🌟 개인 맞춤 커리큘럼
+        </button>
     </div>
+    
     <div class="panel" id="root-panel">
         <div id="left-panel" class="panel panel-col">
             <div class="tab-panel panel-item-fixed-height">
-                <div class="tab">Description</div>
+                <div class="tab selected" id="tab-label-description">Description</div>
                 <div class="tab-separator"></div>
                 <div class="tab">Solution</div>
                 <div class="tab-separator"></div>
                 <div class="tab">개념</div>
                 <div class="tab-separator"></div>
-                <div class="tab">관련 문제</div>
+                <div class="tab">선행 문제</div>
                 <div class="tab-separator"></div>
                 <div class="tab">오답 노트</div>
                 <div class="tab-separator"></div>
                 <div class="tab">나의 취약개념</div>
             </div>
+            
             <div id="tab-description" class="tab-content tab-content-left active">
                 <div class="markdown-content content" id="description-content"></div>
+
+                <div id="co-ft-generator-ui" class="content" style="display: none; padding: 20px; background-color: #ffffff; color: #000000;">
+                    <div style="border: 1px solid #e0e0e0; padding: 15px; border-radius: 8px; background-color: #f9f9f9; margin-bottom: 15px;">
+                        <h2 style="color: #333; margin-top: 0; font-size: 1.2em;">CO-FT PROBLEM 생성</h2>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <label for="difficulty-select" style="font-weight: bold;">난이도:</label>
+                            <select id="difficulty-select" style="padding: 5px;">
+                                <option value="Easy">하 (Easy)</option>
+                                <option value="Medium">중 (Medium)</option>
+                                <option value="Hard">상 (Hard)</option>
+                            </select>
+                            <button id="generate-problem-btn" class="gray-btn-style" style="margin: 0;">
+                                🤖 코딩문제 생성하기
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="co-ft-layout-container">
+                        <div class="problem-content-area">
+                            <h3 style="margin-top: 0; border-bottom: 1px solid #eee; padding-bottom: 10px;">📄 문제 내용</h3>
+                            <div id="generated-problem-display">
+                                <p style="color: #666; text-align: center; margin-top: 50px;">
+                                    문제를 생성하거나 아래 목록에서 선택하세요.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="problem-list-area">
+                            <h4 style="margin-top: 0; color: #555;">📂 생성된 문제 목록</h4>
+                            <div id="generated-problems-list"></div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div id="tab-solution" class="tab-content tab-content-left">
-                <div class="markdown-content content" id="solution-content"></div>
-            </div>
-            <div id="tab-개념" class="tab-content tab-content-left">
-                <div class="markdown-content content" id="concept-content"></div>
-            </div>
-            <div id="tab-관련-문제" class="tab-content tab-content-left">
-                <div class="markdown-content content" id="related-problems-content"></div>
-            </div>
-            <div id="tab-오답-노트" class="tab-content tab-content-left">
-                <div class="markdown-content content" id="notes-content"></div>
-            </div>
-            <div id="tab-나의-취약개념" class="tab-content tab-content-left">
-                <div class="markdown-content content" id="weak-concepts-summary-content"></div>
-            </div>
+
+            <div id="tab-solution" class="tab-content tab-content-left"><div class="markdown-content content" id="solution-content"></div></div>
+            <div id="tab-개념" class="tab-content tab-content-left"><div class="markdown-content content" id="concept-content"></div></div>
+            <div id="tab-선행-문제" class="tab-content tab-content-left"><div class="markdown-content content" id="related-problems-content"></div></div>
+            <div id="tab-오답-노트" class="tab-content tab-content-left"><div class="markdown-content content" id="notes-content"></div></div>
+            <div id="tab-나의-취약개념" class="tab-content tab-content-left"><div class="markdown-content content" id="weak-concepts-summary-content"></div></div>
         </div>
+        
         <div id="right-panel" class="panel panel-col panel-item">
             <div id="top-right-panel" class="panel-item panel-left panel panel-col">
                 <div class="tab-panel">Code</div>
@@ -68,6 +101,7 @@
                     <div class="tab-separator"></div>
                     <div class="tab" id="tab-compilation-button">Compilation</div>
                 </div>
+                
                 <div id="tab-testcase" class="tab-content bottom-right-content content active">
                     <div id="tab-testcase-container">
                         <h5 class="testcase-container-title">Input:</h5>
@@ -83,8 +117,7 @@
                     </div>
                 </div>
                 <div id="tab-test-results" class="tab-test-results tab-content tab-bottom-right content">
-                    <div class="bottom-right-content" id="test-results-content">
-                    </div>
+                    <div class="bottom-right-content" id="test-results-content"></div>
                 </div>
                 <div id="tab-compilation" class="tab-compilation compilation-panel tab-content content">
                     <pre class="compilation-content bottom-right-content content" id="compilation-content"></pre>
@@ -92,6 +125,7 @@
             </div>
         </div>
     </div>
-</body>
 
+    <script src="index.js"></script>
+</body>
 </html>
