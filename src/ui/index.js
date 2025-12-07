@@ -1,8 +1,7 @@
-const path = require('path')
+const path = require('path');
 const file = require('fs');
 const amdLoader = require('monaco-editor/min/vs/loader.js');
-const Split = require('split.js')
-// 'shell' 모듈을 electron에서 가져옵니다.
+const Split = require('split.js');
 const { ipcRenderer, shell } = require('electron');
 const { exec } = require('child_process');
 const DirectoryManager = require('./directory-manager.js');
@@ -17,65 +16,52 @@ var editor;
 const directory_manager = require('./directory-manager.js');
 const directoryManager = new directory_manager.DirectoryManager();
 var noteManager = null;
-var problemBuildsDir; // .txt 파일 저장을 위해 전역 변수로 선언
+var problemBuildsDir;
 
 amdRequire.config({
     baseUrl: path.join(__dirname, './node_modules/monaco-editor/min')
 });
 
 var activeProblem = null;
-var previousProblem; // saveSolution에서 사용되도록 유지
+var previousProblem;
+let currentGeneratedProblem = null; 
 
 self.module = undefined;
 
+// =========================================================
+// 1. 파일 시스템 및 기본 로직
+// =========================================================
+
 function saveSolution(language, content) {
-    if (!previousProblem) {
-        return;
-    }
-    const userSolutionFilename =
-        directoryManager.getUserSolutionFilename(previousProblem);
+    if (!previousProblem) return;
+    if (previousProblem === "CO-FT PROBLEM" || previousProblem.startsWith("CO-FT-")) return;
+
+    const userSolutionFilename = directoryManager.getUserSolutionFilename(previousProblem);
     if (file.existsSync(userSolutionFilename) &&
         file.readFileSync(userSolutionFilename, 'utf8') === content) {
-        console.log("No changes to save");
         return;
     }
-    console.log("Saving problem " + previousProblem + " to " +
-        userSolutionFilename);
     file.writeFileSync(userSolutionFilename, content);
 }
 
 function parseResultsFileFromStdout(stdout) {
     match = stdout.match(/Results written to (.*\.results)/);
-    if (!match || match.length === 0) {
-        return null;
-    }
+    if (!match || match.length === 0) return null;
     return match[1];
 }
 
 function parseBuildError(stdout) {
     const regex = /cmake --build[\s\S]*?cmake --build/;
     const match = stdout.match(regex);
-    if (!match || match.length === 0) {
-        return stdout;
-    }
-    const buildError = match[0].split('\n').slice(1, -1).join('\n');
-    return buildError;
+    if (!match || match.length === 0) return stdout;
+    return match[0].split('\n').slice(1, -1).join('\n');
 }
 
-// [수정] validateResults 함수 수정
 function validateResults(results) {
     try {
-        // 1. 스키마를 가져옵니다. (directory-manager.js에서 이제 복사본을 줍니다)
         const schema = directoryManager.getResultsSchemaJson();
-
-        // 2. [!!! 여기가 수정된 부분 !!!]
-        // 'Invalid URL' 오류를 방지하기 위해, 
-        // jsonschema 라이브러리가 잘못 해석할 수 있는 '$id' 속성을 검증 전에 제거합니다.
-        if (schema.hasOwnProperty('$id')) {
-            delete schema['$id'];
-        }
+        if (schema.hasOwnProperty('$id')) delete schema['$id'];
         
-        // 3. 이제 검증을 수행합니다.
         const v = new Validator();
         const validation = v.validate(results, schema);
         if (!validation.valid) {
@@ -83,7 +69,6 @@ function validateResults(results) {
             return false;
         }
     } catch (e) {
-        // (index.js:87) 오류가 발생했던 곳
         console.error("Error validating data:", e);
         return false;
     }
@@ -91,27 +76,22 @@ function validateResults(results) {
 }
 
 function readTestcaseFile(filename) {
-    if (filename == undefined) {
-        console.error("Testcase file not defined");
-        return "Testcase file not defined";
-    }
+    if (filename == undefined) return "Testcase file not defined";
     try {
         var testcaseFileContent = file.readFileSync(filename, "utf8");
-        testcaseFileContent =
-            testcaseFileContent.replace(/\n/g, "<br>&emsp;");
-        return testcaseFileContent;
+        return testcaseFileContent.replace(/\n/g, "<br>&emsp;");
     } catch (err) {
-        console.error(`Error reading file ${filename}:`, err);
         return `Error reading file ${filename}: ${err}`;
     }
 }
 
+// =========================================================
+// 2. 테스트 결과 및 실행 로직
+// =========================================================
+
 function setTestResults(results) {
-    // (index.js:111) 이제 이 함수가 오류 없이 통과할 것입니다.
-    if (!validateResults(results)) {
-        return;
-    }
-    console.log("Setting test results: " + JSON.stringify(results));
+    if (!validateResults(results)) return;
+    
     const div = document.getElementById('test-results-content');
     let html = `
         <p>Duration: ${results.duration_ms} ms</p>
@@ -127,20 +107,22 @@ function setTestResults(results) {
         }
 
         if (test.status !== 'Pass') {
-            const failedTestcasePath = path.join(
-                problemBuildsDir,
-                "problems",
-                activeProblem,
-                `${test.testcase_name}_failed.txt`
-            );
-            let fileContent = `Testcase: ${test.testcase_name}\n`;
-            fileContent += `Status: ${test.status}\n`;
-            if (test.actual) fileContent += `Actual: ${JSON.stringify(test.actual)}\n`;
-            if (test.expected) fileContent += `Expected: ${JSON.stringify(test.expected)}\n`;
-            if (test.reason) fileContent += `Reason: ${test.reason}\n`;
-            if (testcase) fileContent += `Testcase Content: ${testcase.replace(/<br>&emsp;/g, "\n")}\n`;
+            if (!activeProblem.startsWith("CO-FT-")) {
+                const failedTestcasePath = path.join(
+                    problemBuildsDir, "problems", activeProblem, `${test.testcase_name}_failed.txt`
+                );
+                try {
+                    let fileContent = `Testcase: ${test.testcase_name}\n`;
+                    fileContent += `Status: ${test.status}\n`;
+                    if (test.actual) fileContent += `Actual: ${JSON.stringify(test.actual)}\n`;
+                    if (test.expected) fileContent += `Expected: ${JSON.stringify(test.expected)}\n`;
+                    if (testcase) fileContent += `Testcase Content: ${testcase.replace(/<br>&emsp;/g, "\n")}\n`;
 
-            file.writeFileSync(failedTestcasePath, fileContent);
+                    if(file.existsSync(path.dirname(failedTestcasePath))) {
+                        file.writeFileSync(failedTestcasePath, fileContent);
+                    }
+                } catch(e) { console.log("Failed to write failed testcase info", e); }
+            }
         }
 
         return `
@@ -157,27 +139,27 @@ function setTestResults(results) {
     div.innerHTML = html;
     document.getElementById('tab-test-results-button').click();
 
-    // 성공으로 간주되는 상태 목록
     const passStatuses = ['Pass', 'Passed', 'Success', 'Ok', 'OK'];
     const allTestsPassed = results.tests.every(test => passStatuses.includes(test.status));
 
     if (!allTestsPassed) {
         if (noteManager) {
-            console.log("Test failed. Saving incorrect answer note.");
             noteManager.addNote(activeProblem, editor.getValue(), results);
             setNotes(activeProblem);
-        } else {
-            console.error("NoteManager is not initialized yet.");
+            setMyWeakConcepts();
         }
     }
 }
 
 function run(callback, testcase = 'All', expected = false) {
+    if (activeProblem.startsWith("CO-FT-") || activeProblem === "CO-FT PROBLEM") {
+        alert("AI 생성 문제는 'AI 검증' 버튼을 이용해주세요.");
+        return;
+    }
+
     saveSolution('cpp', editor.getValue());
     const pathsFile = DirectoryManager.getPathsFile();
-    if (!file.existsSync(pathsFile)) {
-        throw new Error(`Paths file does not exist: ${pathsFile}`);
-    }
+    if (!file.existsSync(pathsFile)) throw new Error(`Paths file does not exist: ${pathsFile}`);
 
     problemBuildsDir = file.readFileSync(pathsFile, 'utf8');
     problemBuildsDir = path.resolve(problemBuildsDir);
@@ -190,163 +172,222 @@ function run(callback, testcase = 'All', expected = false) {
         `--testcase ${testcase} ` +
         `${expected ? '--run-expected-tests ' : ''}` +
         `--verbose`;
-    console.log("Running command: " + command);
-    var resultsFilename;
+    
     exec(command, (error, stdout, stderr) => {
         var element = document.getElementById("compilation-content");
-        
         element.innerHTML = "";
         
-        resultsFilename = parseResultsFileFromStdout(stdout);
+        var resultsFilename = parseResultsFileFromStdout(stdout);
         if (!resultsFilename || !file.existsSync(resultsFilename)) {
-            console.log("Setting error");
-            console.log("Error running the command, error: " + error +
-                ", stderr: " + stderr + ", stdout: " + stdout);
-
             const parsedError = parseBuildError(stdout || stderr);
             element.innerHTML = translateError(parsedError);
-
             document.getElementById('tab-compilation-button').click();
+            
+            // 컴파일 에러 저장
+            if (noteManager) {
+                const compileErrorResult = {
+                    status: "Compilation Error",
+                    tests: [{
+                        status: "Failed",
+                        testcase_name: "Build/Compile",
+                        reason: "컴파일 또는 빌드 오류",
+                        actual: parsedError
+                    }]
+                };
+                noteManager.addNote(activeProblem, editor.getValue(), compileErrorResult);
+                setNotes(activeProblem);
+                setMyWeakConcepts();
+            }
             return;
         }
 
         const results = file.readFileSync(resultsFilename, 'utf8');
-        console.log(results);
         const resultsJson = JSON.parse(results);
-        var errorcode = resultsJson["errorcode"];
-        console.log("errorcode: " + errorcode);
-        if (errorcode != undefined && errorcode !== 0) {
-            let html = "<p>Errorcode: " + resultsJson.errorcode + "</p>";
-            html += "<p>Stdout: " + resultsJson.stdout + "</p>";
-            html += "<p>Stderr: " + resultsJson.stderr + "</p>";
+        
+        if (resultsJson.errorcode && resultsJson.errorcode !== 0) {
+            let html = `<p>Errorcode: ${resultsJson.errorcode}</p><p>Stdout: ${resultsJson.stdout}</p><p>Stderr: ${resultsJson.stderr}</p>`;
             element.innerHTML = html;
             document.getElementById('tab-compilation-button').click();
-            return;
+
+            if (noteManager) {
+                const runtimeErrorResult = {
+                    status: "Runtime Error",
+                    tests: [{
+                        status: "Failed",
+                        testcase_name: "Runtime",
+                        reason: `실행 오류 (Code: ${resultsJson.errorcode})`,
+                        actual: resultsJson.stderr
+                    }]
+                };
+                noteManager.addNote(activeProblem, editor.getValue(), runtimeErrorResult);
+                setNotes(activeProblem);
+                setMyWeakConcepts();
+            }
         } else {
-            console.log("Setting results");
-            // (index.js:225) 여기에서 setTestResults가 호출됩니다.
             callback(resultsJson);
         }
     });
 }
 
 function setCustomTestcaseResults(results) {
-    if (!validateResults(results)) {
-        return;
-    }
+    if (!validateResults(results)) return;
     document.getElementById('testcase-stderr').textContent = results.stderr;
-    if (results.tests.length !== 1) {
-        console.error("Expected 1 custom test results, got " +
-            results.tests.length);
-        return;
-    }
-    if (results.tests[0].status !== "Skipped") {
-        console.error("Expected custom test status to be 'skipped', got " +
-            results.tests[0].status);
-        return;
-    }
-    console.log("Setting custom testcase results: " + JSON.stringify(results));
     document.getElementById('testcase-stdout').textContent = results.stdout;
-    document.getElementById('testcase-output').textContent =
-        JSON.stringify(results.tests[0].actual);
-    run(setExpectedTestcaseResults, directoryManager.getCustomTestcaseName(),
-        true);
+    document.getElementById('testcase-output').textContent = JSON.stringify(results.tests[0].actual);
+    
+    run(setExpectedTestcaseResults, directoryManager.getCustomTestcaseName(), true);
     document.getElementById('tab-testcases').click();
 }
 
 function setExpectedTestcaseResults(expected) {
-    if (!validateResults(expected)) {
-        return;
-    }
-    if (expected.tests.length !== 1) {
-        console.error("Expected 1 test results, got " +
-            expected.tests.length);
-        return;
-    }
-    if (expected.tests[0].status !== "Skipped") {
-        console.error("Expected test status to be 'skipped', got " +
-            expected.tests[0].status);
-    }
-    document.getElementById('expected-output').textContent =
-        JSON.stringify(expected.tests[0].actual);
+    if (!validateResults(expected)) return;
+    document.getElementById('expected-output').textContent = JSON.stringify(expected.tests[0].actual);
 }
 
 function runCustomTestcase() {
-    console.log("Running custom testcase for " + activeProblem);
+    if (activeProblem.startsWith("CO-FT")) {
+        alert("AI 생성 문제는 커스텀 테스트케이스 기능을 지원하지 않습니다.");
+        return;
+    }
     document.getElementById('testcase-stdout').textContent = "";
     document.getElementById('testcase-stderr').textContent = "";
     document.getElementById('testcase-output').textContent = "";
     document.getElementById('compilation-content').innerHTML = "";
     document.getElementById('test-results-content').innerHTML = "";
+    
     const input = document.getElementById('input-container').value + "\n*";
-    const customTestcaseFilename =
-        directoryManager.getCustomTestcaseFilename(activeProblem);
-    if (!file.existsSync(path.dirname(customTestcaseFilename))) {
-        console.log('The directory does not exist. Directory: ' + path.dirname(customTestcaseFilename));
-        return;
-    }
+    const customTestcaseFilename = directoryManager.getCustomTestcaseFilename(activeProblem);
+    
+    if (!file.existsSync(path.dirname(customTestcaseFilename))) return;
+    
     file.writeFileSync(customTestcaseFilename, input);
-    if (!file.existsSync(customTestcaseFilename)) {
-        throw new Error(`Failed to write custom testcase to ` +
-            `${customTestcaseFilename}`);
-    }
-    console.log('Custom testcase written to ' + customTestcaseFilename);
     run(setCustomTestcaseResults, directoryManager.getCustomTestcaseName());
 }
 
+// =========================================================
+// 3. UI 컨텐츠 업데이트
+// =========================================================
+
 function setDescription(problemName) {
-    var element =
-        document.querySelector('.markdown-content#description-content');
-    element.innerHTML = directoryManager.getDescription(problemName);
+    document.querySelector('.markdown-content#description-content').innerHTML = directoryManager.getDescription(problemName);
 }
 
 function setSolution(problemName) {
-    var element = document.querySelector('.markdown-content#solution-content');
-    element.innerHTML = directoryManager.getSolution(problemName);
+    document.querySelector('.markdown-content#solution-content').innerHTML = directoryManager.getSolution(problemName);
 }
 
 function setUserSolution(problemName) {
-    var element = document.querySelector('#user-solution-content');
-    const userSolutionFilename =
-        directoryManager.getUserSolutionFilename(problemName);
-    editor.setValue(file.readFileSync(userSolutionFilename, 'utf8'));
+    const filename = directoryManager.getUserSolutionFilename(problemName);
+    editor.setValue(file.readFileSync(filename, 'utf8'));
+}
+
+function loadCoFtTabContent(tabName) {
+    if (!currentGeneratedProblem) return;
+
+    const containerMap = {
+        'Solution': 'solution-content',
+        '개념': 'concept-content',
+        '선행 문제': 'related-problems-content'
+    };
+    const containerId = containerMap[tabName];
+    if (!containerId) return;
+
+    const container = document.getElementById(containerId);
+
+    if (!currentGeneratedProblem.cachedTabs) {
+        currentGeneratedProblem.cachedTabs = {};
+    }
+    if (currentGeneratedProblem.cachedTabs[tabName]) {
+        if (container.innerHTML !== currentGeneratedProblem.cachedTabs[tabName]) {
+            container.innerHTML = currentGeneratedProblem.cachedTabs[tabName];
+            if (tabName === '선행 문제') bindRelatedProblemButton(container);
+        }
+        return; 
+    }
+
+    if (tabName === 'Solution') {
+        const html = `
+            <div style="padding:15px;">
+                <h2 style="border-bottom:1px solid #eee; padding-bottom:10px;">${currentGeneratedProblem.title} - Solution Guide</h2>
+                <div style="background:#f6f8fa; padding:15px; border-radius:5px; border:1px solid #e1e4e8; line-height:1.6;">
+                    ${currentGeneratedProblem.solutionLogic || "풀이 로직이 제공되지 않았습니다."}
+                </div>
+            </div>`;
+        currentGeneratedProblem.cachedTabs['Solution'] = html;
+        container.innerHTML = html;
+
+    } else if (tabName === '개념') {
+        container.innerHTML = `<div style="text-align:center; padding:20px;">⌛ AI가 핵심 개념을 분석 중입니다...</div>`;
+        ipcRenderer.invoke('request-problem-concepts', {
+            problemName: currentGeneratedProblem.title,
+            description: currentGeneratedProblem.htmlContent
+        }).then(html => {
+            currentGeneratedProblem.cachedTabs['개념'] = html;
+            container.innerHTML = html;
+        }).catch(e => container.innerHTML = `<p style="color:red">오류: ${e.message}</p>`);
+
+    } else if (tabName === '선행 문제') {
+        container.innerHTML = `
+            <div style="padding: 30px 20px; text-align: center;">
+                <p style="margin-bottom: 20px; color: #555; font-size: 1.1em; line-height: 1.6;">
+                    AI 생성 문제와 관련된<br>
+                    <strong>OpenLeetCode 문제들을 추천합니다!<br>
+                    
+                </p>
+                <button id="coft-recommend-btn" class="recommend-btn">
+                    🚀 맞춤 문제 추천받기
+                </button>
+                <div id="coft-recommend-loading" style="display:none; margin-top:20px; color:#007ACC; font-weight:bold;">
+                    CO-FT가 분석 중입니다... ⏳
+                </div>
+            </div>
+        `;
+        bindRelatedProblemButton(container);
+    }
+}
+
+function bindRelatedProblemButton(container) {
+    const btn = container.querySelector('#coft-recommend-btn');
+    const loading = container.querySelector('#coft-recommend-loading');
+
+    if (btn) {
+        btn.addEventListener('click', () => {
+            btn.style.display = 'none';
+            loading.style.display = 'block';
+
+            // 외부 URL 요청
+            ipcRenderer.invoke('request-related-problems', {
+                problemName: currentGeneratedProblem.title
+            }).then(html => {
+                currentGeneratedProblem.cachedTabs['선행 문제'] = html;
+                container.innerHTML = html;
+            }).catch(e => {
+                container.innerHTML = `<p style="color:red">오류: ${e.message}</p>`;
+            });
+        });
+    }
 }
 
 function setConcepts(problemName) {
     const content = document.getElementById('concept-content');
     content.innerHTML = `
         <div class="note-content">
-            <p>현재 문제(${problemName})를 해결하는 데 필요한 핵심 개념을 AI에게 물어볼 수 있습니다.</p>
-            <button id="get-concepts-btn" class="ai-analysis-btn">🧠 AI 핵심 개념 분석</button>
-            <div id="ai-concepts-result">
-                </div>
+            <p>현재 문제(${problemName})의 핵심 개념을 CO-FT 에게 물어볼 수 있습니다.</p>
+            <button id="get-concepts-btn" class="ai-analysis-btn">💡 AI 핵심 개념 분석</button>
+            <div id="ai-concepts-result"></div>
         </div>
     `;
-    
     document.getElementById('get-concepts-btn').addEventListener('click', async () => {
-        const button = document.getElementById('get-concepts-btn');
-        const resultDiv = document.getElementById('ai-concepts-result');
-        
-        button.disabled = true;
-        button.textContent = "분석 중...";
-        resultDiv.innerHTML = "<p>AI가 핵심 개념을 분석 중입니다...</p>";
-
+        const btn = document.getElementById('get-concepts-btn');
+        const res = document.getElementById('ai-concepts-result');
+        btn.disabled = true; btn.textContent = "분석 중...";
         try {
-            const description = directoryManager.getDescription(activeProblem);
-            const conceptResult = await ipcRenderer.invoke('request-problem-concepts', {
-                problemName: activeProblem,
-                description: description 
+            const html = await ipcRenderer.invoke('request-problem-concepts', {
+                problemName: activeProblem, description: directoryManager.getDescription(activeProblem)
             });
-            
-            resultDiv.innerHTML = conceptResult;
-
-        } catch (error) {
-            console.error('AI 개념 분석 중 오류 발생:', error);
-            resultDiv.innerHTML = `<p style="color: #f48771;">AI 분석 중 오류가 발생했습니다: ${error.message}</p>`;
-        } finally {
-            button.disabled = false;
-            button.textContent = "🧠 AI 핵심 개념 분석";
-        }
+            res.innerHTML = html;
+        } catch (e) { res.innerHTML = "Error: " + e.message; }
+        finally { btn.disabled = false; btn.textContent = "💡 AI 핵심 개념 분석"; }
     });
 }
 
@@ -354,462 +395,539 @@ function setRelatedProblems(problemName) {
     const content = document.getElementById('related-problems-content');
     content.innerHTML = `
         <div class="note-content">
-            <p>현재 문제(${problemName})와 관련된 더 쉬운 문제들을 AI에게 추천받을 수 있습니다.</p>
-            <button id="get-related-problems-btn" class="ai-analysis-btn">🚀 관련 문제 추천받기</button>
-            <div id="related-problems-container">
-                </div>
+            <p>관련된 쉬운 문제 추천받기</p>
+            <button id="get-related-problems-btn" class="ai-analysis-btn">🚀 추천받기</button>
+            <div id="related-problems-container"></div>
         </div>
     `;
-
     document.getElementById('get-related-problems-btn').addEventListener('click', async () => {
-        const button = document.getElementById('get-related-problems-btn');
-        const container = document.getElementById('related-problems-container');
-
-        button.disabled = true;
-        button.textContent = "추천받는 중...";
-        container.innerHTML = "<p>AI가 관련 문제를 찾고 있습니다...</p>";
-
+        const btn = document.getElementById('get-related-problems-btn');
+        const con = document.getElementById('related-problems-container');
+        btn.disabled = true; btn.textContent = "추천 중...";
         try {
-            const relatedProblemsResult = await ipcRenderer.invoke('request-related-problems', {
-                problemName: activeProblem
-            });
-            
-            container.innerHTML = relatedProblemsResult;
-
-        } catch (error) {
-            console.error('AI 관련 문제 추천 중 오류 발생:', error);
-            container.innerHTML = `<p style="color: #f48771;">AI 추천 중 오류가 발생했습니다: ${error.message}</p>`;
-        } finally {
-            button.disabled = false;
-            button.textContent = "🚀 관련 문제 추천받기";
-        }
+            const html = await ipcRenderer.invoke('request-related-problems', { problemName: activeProblem });
+            con.innerHTML = html;
+        } catch (e) { con.innerHTML = "Error: " + e.message; }
+        finally { btn.disabled = false; btn.textContent = "🚀 추천받기"; }
     });
 }
 
+// =========================================================
+// 4. 오답 노트 및 취약 개념 (수정됨: 유령 데이터 방지)
+// =========================================================
+
 function setNotes(problemName) {
     const content = document.getElementById('notes-content');
-    if (!noteManager) {
-        content.innerHTML = "<p>오답 노트를 불러오는 중입니다...</p>";
-        return;
-    }
+    if (!noteManager) { content.innerHTML = "<p>로딩 중...</p>"; return; }
+    
     const notes = noteManager.getNotes(problemName);
     if (notes.length === 0) {
         content.innerHTML = "<p>아직 이 문제에 대한 오답 기록이 없습니다.</p>";
         return;
     }
+    
     content.innerHTML = notes.map(note => {
-        // 실패한 테스트 찾기: 성공 상태가 아닌 첫 번째 테스트
-        const passStatuses = ['Pass', 'Passed', 'Success', 'Ok', 'OK'];
-        const failedTest = note.results.tests.find(t => !passStatuses.includes(t.status));
-
-        // 테스트 정보 추출
-        const testName = failedTest ? failedTest.testcase_name : (note.results.testcase_filter_name || "저장");
-
-        // 입력값 추출: testcase_file에서 읽어오기
-        let input = 'N/A';
-        if (failedTest && failedTest.testcase_file) {
-            try {
-                const testcaseContent = file.readFileSync(failedTest.testcase_file, 'utf8');
-                const lines = testcaseContent.trim().split('\n');
-                // 마지막 줄은 expected output이므로 제외하고 나머지가 input
-                if (lines.length > 1) {
-                    input = lines.slice(0, -1).join(', ');
-                }
-            } catch (err) {
-                console.error(`Error reading testcase file: ${err}`);
-            }
-        }
-
-        const expected = (failedTest && failedTest.expected !== undefined) ? JSON.stringify(failedTest.expected) : 'N/A';
-        const actual = (failedTest && failedTest.actual !== undefined) ? JSON.stringify(failedTest.actual) : 'N/A';
+        const failedTest = note.results.tests.find(t => t.status !== 'Pass') || { testcase_name: "저장" };
+        const testName = failedTest.testcase_name;
         
-        const aiAnalysis = note.aiAnalysis || null;
-        let aiAnalysisHtml = '';
+        const aiData = note.aiAnalysis;
+        let aiHtml = '';
 
-        if (aiAnalysis) {
-            const summary = aiAnalysis.conceptSummary;
+        if (aiData) {
             let conceptHtml = '';
-            
-            if (summary && summary.concepts && Array.isArray(summary.concepts)) {
-                conceptHtml += summary.title || '<h4>3. 취약 개념 요약 제시 📚</h4>';
-                conceptHtml += '<ul>';
-                summary.concepts.forEach(concept => {
-                    conceptHtml += `<li><strong>${concept.name}:</strong> ${concept.tip}</li>`;
-                });
-                conceptHtml += '</ul>';
+            if (aiData.conceptSummary?.concepts) {
+                conceptHtml = '<ul>' + aiData.conceptSummary.concepts.map(c => `<li><strong>${c.name}:</strong> ${c.tip}</li>`).join('') + '</ul>';
             }
-
-            aiAnalysisHtml = `
+            aiHtml = `
                 <h4>🌟 AI 오답 분석 결과</h4>
-                ${aiAnalysis.reasonAnalysis || ''} 
-                ${aiAnalysis.patternAnalysis || ''} 
+                ${aiData.reasonAnalysis || ''} 
+                ${aiData.patternAnalysis || ''} 
                 ${conceptHtml} 
             `;
         } else {
-            aiAnalysisHtml = `<button class="ai-analysis-btn" data-timestamp="${note.timestamp}">🧠 AI 분석 요청</button>`;
+            aiHtml = `<button class="ai-analysis-btn" data-timestamp="${note.timestamp}">🔍 AI 분석 요청</button>`;
         }
 
         return `
             <div class="note-item">
-                <details ${aiAnalysis ? 'open' : ''}>
+                <details ${aiData ? 'open' : ''}>
                     <summary class="note-summary">
-                        ${new Date(note.timestamp).toLocaleString()} - 
-                        <span class="note-status-fail">오답</span>
-                        <span class="delete-note-btn" data-timestamp="${note.timestamp}" title="이 기록 삭제">❌</span>
+                        ${new Date(note.timestamp).toLocaleString()} - <span class="note-status-fail">오답</span>
+                        <span class="delete-note-btn delete-btn" data-timestamp="${note.timestamp}" title="삭제">❌</span>
                     </summary>
                     <div class="note-content">
-                        <h4>실패한 테스트케이스: ${testName}</h4>
-                        <p><strong>Input:</strong> <code>${input}</code></p>
-                        <p><strong>Expected:</strong> <code>${expected}</code></p>
-                        <p><strong>My Output:</strong> <code>${actual}</code></p>
-                        
+                        <h4>실패한 케이스: ${testName}</h4>
                         <hr>
-                        ${aiAnalysisHtml}
+                        ${aiHtml}
                         <hr>
-                        
-                        <h4>당시 제출 코드</h4>
-                        <pre><code>${note.code.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</code></pre>
+                        <h4>제출 코드</h4>
+                        <pre><code class="language-cpp">${note.code.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</code></pre>
                     </div>
                 </details>
             </div>
         `;
     }).join('');
+
+    if (window.hljs) {
+        document.querySelectorAll('#notes-content pre code').forEach((el) => {
+            window.hljs.highlightElement(el);
+        });
+    }
 }
 
 function setMyWeakConcepts() {
     const content = document.getElementById('weak-concepts-summary-content');
-    if (!noteManager) {
-        content.innerHTML = "<p>오답 노트를 불러오는 중입니다...</p>";
-        return;
-    }
+    if (!noteManager) { content.innerHTML = "<p>로딩 중...</p>"; return; }
 
     const allNotes = noteManager.getAllNotes();
+    const ignoredList = noteManager.getIgnoredConcepts(); 
     const conceptMap = new Map();
 
+    // [핵심 수정] 존재하는 CO-FT 문제 ID 목록 가져오기
+    const existingGeneratedProblems = noteManager.getGeneratedProblems().map(p => p.id);
+
     allNotes.forEach(note => {
-        if (note.aiAnalysis && note.aiAnalysis.conceptSummary && note.aiAnalysis.conceptSummary.concepts) {
+        // [핵심 수정] CO-FT 문제인데 목록에 없으면(삭제된 문제면) 무시
+        if (note.problemName.startsWith("CO-FT-") && !existingGeneratedProblems.includes(note.problemName)) {
+            return;
+        }
+
+        if (note.aiAnalysis?.conceptSummary?.concepts) {
             note.aiAnalysis.conceptSummary.concepts.forEach(concept => {
-                const conceptName = concept.name.split('(')[0].trim();
-                const conceptTip = concept.tip;
-                
-                if (conceptName) {
-                    const entry = conceptMap.get(conceptName) || { count: 0, tips: [] };
-                    entry.count++;
-                    
-                    if (!entry.tips.includes(conceptTip)) {
-                        entry.tips.push(conceptTip);
-                    }
-                    conceptMap.set(conceptName, entry);
-                }
+                const name = concept.name.split('(')[0].trim();
+                if (ignoredList.includes(name)) return; 
+
+                const entry = conceptMap.get(name) || { count: 0, tips: [] };
+                entry.count++;
+                if (!entry.tips.includes(concept.tip)) entry.tips.push(concept.tip);
+                conceptMap.set(name, entry);
             });
         }
     });
 
     if (conceptMap.size === 0) {
-        content.innerHTML = `
-            <div class="weak-concept-summary">
-                <p>아직 집계된 취약 개념이 없습니다.</p>
-                <p>오답 노트를 생성하고 <strong>[🧠 AI 분석 요청]</strong> 버튼을 눌러 데이터를 쌓아보세요.</p>
-            </div>
-        `;
+        content.innerHTML = `<div class="weak-concept-summary"><p>표시할 취약 개념이 없습니다.</p></div>`;
         return;
     }
 
     const sortedConcepts = Array.from(conceptMap.entries()).sort((a, b) => b[1].count - a[1].count);
 
-    let html = `
-        <div class="weak-concept-summary">
-            <p>지금까지 AI가 분석한 나의 주요 취약 개념 목록입니다. (클릭하여 누적된 팁 보기)</p>
-            <ul class="weak-concept-list">
-    `;
+    let html = `<div class="weak-concept-summary"><p>나의 주요 취약 개념 (누적)</p><ul class="weak-concept-list">`;
 
     sortedConcepts.forEach(([name, entry]) => {
         html += `
             <li>
                 <details class="weak-concept-details">
-                    <summary> <span class="weak-concept-name">${name}</span>
-                        <span class="weak-concept-count">${entry.count}회 누적</span>
+                    <summary> 
+                        <span class="weak-concept-name">${name}</span>
+                        <div style="display: flex; align-items: center;">
+                            <span class="weak-concept-count">${entry.count}회</span>
+                            <span class="delete-concept-btn" data-name="${name}" title="이 개념 목록에서 삭제">✕</span>
+                        </div>
                     </summary>
                     <div class="weak-concept-content"> ${entry.tips.map(tip => `<p>• ${tip}</p>`).join('')}
                     </div>
                 </details>
-            </li>
-        `;
+            </li>`;
     });
-
     html += '</ul></div>';
     content.innerHTML = html;
+
+    document.querySelectorAll('.delete-concept-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation(); e.preventDefault();
+            const conceptName = e.target.dataset.name;
+            if (confirm(`'${conceptName}' 개념을 목록에서 지우시겠습니까?`)) {
+                noteManager.ignoreConcept(conceptName);
+                setMyWeakConcepts();
+            }
+        });
+    });
 }
 
+// =========================================================
+// 5. 문제 선택 및 모드 전환
+// =========================================================
 
 function onProblemSelected(problemName) {
     document.getElementById('testcase-stdout').textContent = "";
     document.getElementById('testcase-stderr').textContent = "";
     document.getElementById('testcase-output').textContent = "";
-    saveSolution('cpp', editor.getValue());
-    previousProblem = problemName;
-    console.log(`Problem selected: ${problemName}`);
-    setDescription(problemName);
-    setSolution(problemName);
-    setUserSolution(problemName);
     
-    setConcepts(problemName);
-    setRelatedProblems(problemName);
-    setNotes(problemName);
+    const runBtn = document.getElementById('run-button');
+    const verifyBtn = document.getElementById('verify-button');
+    const testcaseBtn = document.getElementById('custom-testcase-button');
+    const descContent = document.getElementById('description-content');
+    const generatorUI = document.getElementById('co-ft-generator-ui');
+
+    if (problemName === "CO-FT PROBLEM") {
+        descContent.style.display = 'none';
+        generatorUI.style.display = 'block';
+        runBtn.style.display = 'none';
+        testcaseBtn.style.display = 'none';
+        verifyBtn.style.display = 'inline-block';
+
+        const descTab = document.getElementById('tab-label-description');
+        if (descTab) descTab.click();
+        
+        renderGeneratedProblemsList();
+
+        if (!currentGeneratedProblem) {
+            editor.setValue("// '문제 생성하기' 버튼을 눌러 문제를 받아보세요.");
+            activeProblem = "CO-FT PROBLEM";
+        } else {
+            activeProblem = currentGeneratedProblem.id;
+        }
+
+    } else {
+        if (previousProblem && !previousProblem.startsWith("CO-FT")) {
+            saveSolution('cpp', editor.getValue());
+        }
+
+        descContent.style.display = 'block';
+        generatorUI.style.display = 'none';
+        runBtn.style.display = 'inline-block';
+        testcaseBtn.style.display = 'inline-block';
+        verifyBtn.style.display = 'none';
+
+        setDescription(problemName);
+        setSolution(problemName);
+        setUserSolution(problemName);
+        setConcepts(problemName);
+        setRelatedProblems(problemName);
+        
+        activeProblem = problemName;
+    }
     
+    setNotes(activeProblem);
     setMyWeakConcepts();
-    
-    activeProblem = problemName;
+    previousProblem = problemName;
+}
+
+// =========================================================
+// 6. CO-FT 문제 관리 (삭제 시 오답 노트 연동)
+// =========================================================
+
+function renderGeneratedProblemsList() {
+    const listContainer = document.getElementById('generated-problems-list');
+    if (!noteManager) return;
+    const problems = noteManager.getGeneratedProblems();
+
+    if (problems.length === 0) {
+        listContainer.innerHTML = '<p style="color:#999; font-size:0.9em; text-align:center; padding:20px;">저장된 문제가 없습니다.</p>';
+        return;
+    }
+
+    listContainer.innerHTML = '';
+    problems.forEach(p => {
+        const item = document.createElement('div');
+        const isActive = currentGeneratedProblem && currentGeneratedProblem.id === p.id;
+        item.className = `generated-problem-item ${isActive ? 'active' : ''}`;
+        
+        const dateObj = new Date(p.timestamp);
+        const dateStr = `${dateObj.getFullYear()}. ${dateObj.getMonth()+1}. ${dateObj.getDate()}.`;
+        
+        item.innerHTML = `
+            <div class="gen-prob-info">
+                <div class="gen-prob-title">${p.title}</div>
+                <div class="gen-prob-meta">
+                    <span class="gen-prob-badge">${p.difficulty}</span>
+                    <span class="gen-prob-date">${dateStr}</span>
+                </div>
+            </div>
+            <span class="delete-btn delete-problem-btn" data-id="${p.id}" title="문제 삭제">✕</span>
+        `;
+        
+        item.addEventListener('click', (e) => {
+            if(e.target.classList.contains('delete-problem-btn')) return;
+            loadGeneratedProblem(p);
+        });
+
+        item.querySelector('.delete-problem-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (confirm("이 문제를 삭제하시겠습니까? (관련 오답노트도 함께 정리됩니다)")) {
+                noteManager.deleteGeneratedProblem(p.id);
+                // [재발 방지] 화면 갱신
+                if (currentGeneratedProblem && currentGeneratedProblem.id === p.id) {
+                    currentGeneratedProblem = null;
+                    document.getElementById('generated-problem-display').innerHTML = '<p style="color:#999; text-align:center; margin-top:50px;">문제가 삭제되었습니다.</p>';
+                    editor.setValue("// 문제 선택 필요");
+                    activeProblem = "CO-FT PROBLEM";
+                }
+                renderGeneratedProblemsList();
+                // 오답 노트/취약 개념 갱신하여 유령 데이터 즉시 제거
+                setNotes(activeProblem);
+                setMyWeakConcepts(); 
+            }
+        });
+
+        listContainer.appendChild(item);
+    });
+}
+
+function loadGeneratedProblem(problem) {
+    currentGeneratedProblem = problem;
+    activeProblem = problem.id;
+
+    document.getElementById('generated-problem-display').innerHTML = problem.htmlContent;
+    editor.setValue(problem.starterCode);
+    renderGeneratedProblemsList();
+    setNotes(activeProblem);
+
+    loadCoFtTabContent('Solution');
+    loadCoFtTabContent('개념');
+    loadCoFtTabContent('선행 문제');
+}
+
+function initializeCoFtProblem() {
+    const generateBtn = document.getElementById('generate-problem-btn');
+    const verifyBtn = document.getElementById('verify-button');
+
+    if (noteManager) renderGeneratedProblemsList();
+
+    generateBtn.addEventListener('click', async () => {
+        const difficulty = document.getElementById('difficulty-select').value;
+        generateBtn.disabled = true;
+        generateBtn.textContent = "생성 중... ⏳";
+
+        try {
+            const result = await ipcRenderer.invoke('generate-co-ft-problem', difficulty);
+            
+            const newProblem = {
+                id: `CO-FT-${Date.now()}`,
+                title: result.title || `AI Generated (${difficulty})`, 
+                difficulty: difficulty,
+                htmlContent: result.htmlContent,
+                starterCode: result.starterCode,
+                solutionLogic: result.solutionLogic,
+                timestamp: new Date().toISOString(),
+                cachedTabs: {} 
+            };
+
+            if (noteManager) noteManager.addGeneratedProblem(newProblem);
+            loadGeneratedProblem(newProblem);
+            
+        } catch (error) {
+            alert("문제 생성 실패: " + error.message);
+        } finally {
+            generateBtn.disabled = false;
+            generateBtn.textContent = "🤖 문제 생성하기";
+        }
+    });
+
+    verifyBtn.addEventListener('click', async () => {
+        if (!currentGeneratedProblem) {
+            alert("검증할 문제가 없습니다.");
+            return;
+        }
+        
+        document.getElementById('tab-test-results-button').click();
+        const resDiv = document.getElementById('test-results-content');
+        resDiv.innerHTML = "<p style='padding:20px; text-align:center;'>⏳ COFT가 코드를 채점 중입니다... <br></p>";
+
+        try {
+            const result = await ipcRenderer.invoke('verify-co-ft-solution', {
+                problem: currentGeneratedProblem,
+                userCode: editor.getValue()
+            });
+            
+            resDiv.innerHTML = result.htmlReport;
+
+            if (!result.isPass) {
+                if (noteManager) {
+                    const fakeResult = {
+                        status: "Failed",
+                        tests: [
+                            { 
+                                status: "Failed", 
+                                testcase_name: "AI 검증 테스트", 
+                                reason: "AI 채점 결과 실패" 
+                            }
+                        ]
+                    };
+                    noteManager.addNote(activeProblem, editor.getValue(), fakeResult);
+                    setNotes(activeProblem);
+                    setMyWeakConcepts(); 
+                }
+            }
+
+        } catch (error) {
+            resDiv.innerHTML = `<p style="color:red">검증 통신 오류: ${error.message}</p>`;
+        }
+    });
+}
+
+// =========================================================
+// 7. 커리큘럼 및 초기화
+// =========================================================
+
+function initializeCurriculumCommand() {
+    document.getElementById('curriculum-button').addEventListener('click', () => {
+        let wc = [];
+        if (noteManager) {
+            const ignoredList = noteManager.getIgnoredConcepts();
+            // [핵심 수정] 존재하는 CO-FT 문제 목록 가져오기
+            const existingGeneratedProblems = noteManager.getGeneratedProblems().map(p => p.id);
+
+            noteManager.getAllNotes().forEach(n => {
+                // [핵심 수정] 삭제된 CO-FT 문제의 오답 노트는 커리큘럼에서 제외
+                if (n.problemName.startsWith("CO-FT-") && !existingGeneratedProblems.includes(n.problemName)) {
+                    return;
+                }
+
+                if (n.aiAnalysis?.conceptSummary?.concepts) {
+                    n.aiAnalysis.conceptSummary.concepts.forEach(c => {
+                        if (!ignoredList.includes(c.name)) wc.push(c.name);
+                    });
+                }
+            });
+        }
+        ipcRenderer.send('open-curriculum-window', [...new Set(wc)]);
+    });
 }
 
 function initializeProblemsCombo(problemNames) {
     var select = document.getElementById('problem-select');
-    problemNames.forEach(problemName => {
-        var option = document.createElement('option');
-        option.value = problemName;
-        option.textContent = problemName;
-        select.appendChild(option);
+    problemNames.forEach(name => {
+        var opt = document.createElement('option');
+        opt.value = name; opt.textContent = name;
+        select.appendChild(opt);
     });
-    select.addEventListener('change', function(event) {
-        onProblemSelected(event.target.value);
-    });
+    var coft = document.createElement('option');
+    coft.value = "CO-FT PROBLEM";
+    coft.textContent = "CO-FT PROBLEM (AI 생성)";
+    select.appendChild(coft);
+    select.addEventListener('change', (e) => onProblemSelected(e.target.value));
 }
 
 function initializeSaveCommand() {
-    ipcRenderer.on('save-command', () => {
-        console.log('Received save command');
-        saveSolution('cpp', editor.getValue());
-    });
-    document.getElementById('save-button')
-        .addEventListener('click', function() {
-            console.log('Save button clicked');
-            saveSolution('cpp', editor.getValue());
-        });
+    ipcRenderer.on('save-command', () => saveSolution('cpp', editor.getValue()));
+    document.getElementById('save-button').addEventListener('click', () => saveSolution('cpp', editor.getValue()));
 }
-
 function initializeRunCommand() {
     ipcRenderer.on('run-command', () => {
-        console.log('Received run command');
         document.getElementById('compilation-content').innerHTML = "";
         document.getElementById('test-results-content').innerHTML = "";
         run(setTestResults);
     });
-    document.getElementById('run-button')
-        .addEventListener('click', function() {
-            console.log('Run button clicked');
-            document.getElementById('compilation-content').innerHTML = "";
-            document.getElementById('test-results-content').innerHTML = "";
-            run(setTestResults);
-        });
+    document.getElementById('run-button').addEventListener('click', () => {
+        document.getElementById('compilation-content').innerHTML = "";
+        document.getElementById('test-results-content').innerHTML = "";
+        run(setTestResults);
+    });
 }
-
 function initializeCustomTestcaseCommand() {
-    ipcRenderer.on('custom-testcase-command', () => {
-        console.log('Received custom testcase command');
-        runCustomTestcase();
-    });
-    document.getElementById('custom-testcase-button')
-        .addEventListener('click', function() {
-            console.log('Custom testcase button clicked');
-            runCustomTestcase();
-        });
+    ipcRenderer.on('custom-testcase-command', () => runCustomTestcase());
+    document.getElementById('custom-testcase-button').addEventListener('click', () => runCustomTestcase());
 }
-
-function initializeCurriculumCommand() {
-    document.getElementById('curriculum-button').addEventListener('click', () => {
-        console.log('Curriculum button clicked');
-        ipcRenderer.send('open-curriculum-window');
-    });
-}
-
 function initializeAddNoteButton() {
     document.getElementById('add-note-button').addEventListener('click', () => {
-        console.log('Add note button clicked');
-        if (!activeProblem || !noteManager) {
-            alert("문제를 먼저 선택해주세요.");
-            return;
-        }
-
-        const currentCode = editor.getValue();
-        const manualResults = {
-            status: "Manual Save",
-            duration_ms: 0,
-            testcase_filter_name: "Manual",
-            tests: [{
-                status: "Failed (Manual)",
-                testcase_name: "수동 저장",
-                reason: "사용자가 직접 '오답 노트로 저장' 버튼을 클릭했습니다."
-            }]
-        };
-
-        noteManager.addNote(activeProblem, currentCode, manualResults);
+        if (!activeProblem || !noteManager) return alert("문제 선택 필요");
+        noteManager.addNote(activeProblem, editor.getValue(), { 
+            status: "Manual", tests: [{ status: "Failed", testcase_name: "수동 저장" }] 
+        });
         setNotes(activeProblem);
-        alert("현재 코드를 오답 노트에 저장했습니다.");
+        alert("오답 노트 저장 완료");
     });
 }
-
 function initializeNoteDeletion() {
-    const notesContainer = document.getElementById('notes-content');
-    notesContainer.addEventListener('click', (event) => {
-        if (event.target.classList.contains('delete-note-btn')) {
-            const timestamp = event.target.dataset.timestamp;
-            if (timestamp && noteManager) {
-                if (confirm('이 오답 기록을 정말로 삭제하시겠습니까?')) {
-                    noteManager.deleteNote(timestamp);
-                    setNotes(activeProblem);
-                    setMyWeakConcepts();
-                }
-            }
-        }
-    });
-}
-
-function initializeNoteAnalysis() {
-    const notesContainer = document.getElementById('notes-content');
-    notesContainer.addEventListener('click', async (event) => {
-        if (event.target.classList.contains('ai-analysis-btn')) {
-            const button = event.target;
-            const timestamp = button.dataset.timestamp;
-            
-            if (!timestamp || !noteManager) {
-                alert("오답 기록을 불러올 수 없습니다.");
-                return;
-            }
-
-            button.disabled = true;
-            button.textContent = "분석 중... (잠시만 기다려주세요)";
-
-            try {
-                const note = noteManager.getAllNotes().find(n => n.timestamp === timestamp);
-                if (!note) throw new Error("Note not found.");
-                
-                const historicalPatterns = noteManager.getAllNotes()
-                    .filter(n => n.aiAnalysis && n.aiAnalysis.patternAnalysis) 
-                    .map(n => n.aiAnalysis.patternAnalysis); 
-
-                const analysisData = {
-                    problemName: note.problemName,
-                    code: note.code,
-                    results: note.results,
-                    historicalPatterns: historicalPatterns
-                };
-
-                const analysisResult = await ipcRenderer.invoke('request-ai-analysis', analysisData);
-
-                noteManager.saveAiAnalysis(timestamp, analysisResult);
+    document.getElementById('notes-content').addEventListener('click', (e) => {
+        if (e.target.classList.contains('delete-note-btn')) {
+            if (confirm('이 기록을 삭제하시겠습니까?')) {
+                noteManager.deleteNote(e.target.dataset.timestamp);
                 setNotes(activeProblem);
                 setMyWeakConcepts();
-                
-            } catch (error) {
-                console.error('AI 분석 중 오류 발생:', error);
-                alert('AI 분석 중 오류가 발생했습니다: ' + error.message);
-            } finally {
-                if (button.textContent.includes('분석 중')) {
-                    button.disabled = false;
-                    button.textContent = "🧠 AI 분석 요청";
-                }
+            }
+        }
+    });
+}
+function initializeNoteAnalysis() {
+    document.getElementById('notes-content').addEventListener('click', async (e) => {
+        if (e.target.classList.contains('ai-analysis-btn')) {
+            const btn = e.target;
+            const ts = btn.dataset.timestamp;
+            btn.disabled = true; btn.textContent = "분석 중...";
+            try {
+                const note = noteManager.getAllNotes().find(n => n.timestamp === ts);
+                const result = await ipcRenderer.invoke('request-ai-analysis', {
+                    problemName: note.problemName,
+                    code: note.code,
+                    results: note.results
+                });
+                noteManager.saveAiAnalysis(ts, result);
+                setNotes(activeProblem);
+                setMyWeakConcepts();
+            } catch (err) {
+                alert(err.message);
+                btn.disabled = false; btn.textContent = "🔍 AI 분석 요청";
             }
         }
     });
 }
 
-document.addEventListener('DOMContentLoaded', async (event) => {
+document.addEventListener('DOMContentLoaded', async () => {
     try {
         noteManager = await createNoteManager();
-        console.log('NoteManager initialized successfully.');
-    } catch (error) {
-        console.error('Failed to initialize NoteManager:', error);
-    }
+        console.log('NoteManager Loaded');
+    } catch (e) { console.error(e); }
 
-    var tabs = document.querySelectorAll('.tab');
-    const problemNames = directoryManager.getProblemNames();
-    initializeProblemsCombo(problemNames);
+    initializeProblemsCombo(directoryManager.getProblemNames());
     initializeSaveCommand();
     initializeRunCommand();
     initializeCustomTestcaseCommand();
-    
     initializeCurriculumCommand();
-    initializeAddNoteButton(); 
+    initializeAddNoteButton();
     initializeNoteDeletion();
     initializeNoteAnalysis();
     
+    initializeCoFtProblem();
+
     amdRequire(['vs/editor/editor.main'], function() {
-        monaco.editor.setTheme('vs-light'); // 테마를 'vs-light'로 변경
-        editor = monaco.editor.create(
-            document.getElementById('user-solution-content'), {
-                language: 'cpp',
-                minimap: {
-                    enabled: false
-                },
-                scrollbar: {
-                    vertical: 'auto',
-                    horizontal: 'auto'
-                },
-                automaticLayout: true,
-                scrollBeyondLastLine: false
-            });
+        monaco.editor.setTheme('vs-light');
+        editor = monaco.editor.create(document.getElementById('user-solution-content'), {
+            language: 'cpp',
+            minimap: { enabled: false },
+            scrollbar: { vertical: 'auto', horizontal: 'auto' },
+            automaticLayout: true,
+            scrollBeyondLastLine: true
+        });
         
-        if (problemNames.length > 0) {
-            onProblemSelected(problemNames[0]);
+        if (directoryManager.getProblemNames().length > 0) {
+            onProblemSelected(directoryManager.getProblemNames()[0]);
         }
     });
 
-    tabs.forEach(tab => {
-        tab.addEventListener('click', function(event) {
-            console.log('Tab clicked: ' + this.textContent);
-            // 이전에 선택된 탭의 'selected' 클래스 제거
-            tabs.forEach(t => t.classList.remove('selected'));
-            // 현재 클릭된 탭에 'selected' 클래스 추가
-            this.classList.add('selected');
-
-            var tabContents = event.target.parentNode.parentNode.querySelectorAll('.tab-content');
-            tabContents.forEach(content => {
-                content.classList.remove('active');
-            });
-            
-            var paneId = this.textContent.toLowerCase().replace(/\s/g, '-');
-            var selectedPane = document.getElementById('tab-' + paneId);
-            if (selectedPane) {
-                selectedPane.classList.add('active');
+    document.querySelectorAll('.tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+            if (this.parentNode.classList.contains('panel-item-fixed-height')) {
+                document.querySelectorAll('.tab-content-left').forEach(c => c.classList.remove('active'));
+                const map = {
+                    'Description': 'tab-description', 'Solution': 'tab-solution',
+                    '개념': 'tab-개념', '선행 문제': 'tab-선행-문제',
+                    '오답 노트': 'tab-오답-노트', '나의 취약개념': 'tab-나의-취약개념'
+                };
+                const targetId = map[this.textContent];
+                if (targetId) document.getElementById(targetId).classList.add('active');
+                
+                if (activeProblem && activeProblem.startsWith("CO-FT")) {
+                    loadCoFtTabContent(this.textContent);
+                }
+            } 
+            else if (this.id.startsWith('tab-')) {
+                document.querySelectorAll('.tab-bottom-right, .tab-compilation, #tab-testcase').forEach(c => c.classList.remove('active'));
+                let tId = '';
+                if (this.textContent === 'Test Results') tId = 'tab-test-results';
+                else if (this.textContent === 'Testcase') tId = 'tab-testcase';
+                else if (this.textContent === 'Compilation') tId = 'tab-compilation';
+                
+                if (tId) document.getElementById(tId).classList.add('active');
             }
+
+            this.parentNode.querySelectorAll('.tab').forEach(t => t.classList.remove('selected'));
+            this.classList.add('selected');
         });
     });
 
-    // 페이지 로드 시 첫 번째 탭(Description)을 기본으로 선택
-    if(tabs.length > 0) {
-        tabs[0].classList.add('selected');
-    }
-});
-
-document.addEventListener('DOMContentLoaded', (event) => {
-    Split(['#left-panel', '#right-panel'], {
-        minSize: 100,
-        sizes: [50, 50],
-        gutterSize: 7,
-    })
-    Split(['#top-right-panel', '#bottom-right-panel'], {
-        minSize: 100,
-        sizes: [60, 40],
-        gutterSize: 7,
-        direction: 'vertical',
-        cursor: 'row-resize',
-    })
-
-    // [추가] (요청 1) 관련 문제 탭의 외부 링크 클릭 처리
-    // 전역 클릭 리스너를 추가하여, 동적으로 생성된 <a> 태그도 처리
-    document.addEventListener('click', (event) => {
-        // 클릭된 요소 또는 그 부모가 <a> 태그인지 확인
-        const link = event.target.closest('a');
-        
-        // 1. 링크가 존재하고, 
-        // 2. href가 http로 시작하고,
-        // 3. 이 링크가 'related-problems-container' 내부에 있는지 확인
-        if (link && link.href.startsWith('http') && link.closest('#related-problems-container')) {
-            // Electron의 기본 동작(앱 내에서 링크 열기 시도)을 막습니다.
-            event.preventDefault();
-            // Electron의 shell 모듈을 사용해 시스템 기본 브라우저에서 엽니다.
-            console.log('Opening external link:', link.href);
-            shell.openExternal(link.href);
-        }
-    });
+    Split(['#left-panel', '#right-panel'], { minSize: 100, sizes: [50, 50], gutterSize: 7 });
+    Split(['#top-right-panel', '#bottom-right-panel'], { minSize: 100, sizes: [60, 40], gutterSize: 7, direction: 'vertical', cursor: 'row-resize' });
 });
