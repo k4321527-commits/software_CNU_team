@@ -1,30 +1,26 @@
 :root {
     --white: #ffffff;
     --black: #000000;
-    --grey-very-light: #f7f7f7; /* 아주 밝은 회색 (배경) */
-    --grey-light: #e0e0e0;       /* 밝은 회색 (호버/경계) */
-    --grey-medium: #c0c0c0;      /* 중간 회색 (탭/구분선) */
-    --grey-dark: #666666;        /* 어두운 회색 (글꼴/테두리) */
-    --grey-very-dark: #333333;   /* 아주 어두운 회색 (강조 글꼴) */
-    --grey-font-color: #555555; /* 일반 탭 글꼴 색상 */
+    --grey-very-light: #f7f7f7;
+    --grey-light: #e0e0e0;
+    --grey-medium: #c0c0c0;
+    --grey-dark: #666666;
+    --grey-very-dark: #333333;
+    --grey-font-color: #555555;
     
-    /* 주요 색상 변수를 라이트 모드에 맞게 재정의 */
-    --panel-background: var(--white);       /* 메인 배경: 흰색 */
-    --content-background: var(--grey-very-light); /* 내용 배경: 아주 밝은 회색 */
-    --tab-background: var(--grey-very-light); /* 탭 배경: 아주 밝은 회색 */
+    --panel-background: var(--white);
+    --content-background: var(--grey-very-light);
+    --tab-background: var(--grey-very-light);
     
-    --border_color: var(--grey-medium);     /* 테두리 색상 */
-    --hover_color: var(--grey-medium);      /* 호버 색상: 중간 회색 */
+    --border_color: var(--grey-medium);
+    --hover_color: var(--grey-medium);
     --panel-border: var(--grey-medium);
     --splitter: var(--grey-medium);
     
-    --content-font-color: var(--black);     /* 내용 글꼴: 검은색 */
-    --tab-font-color: var(--grey-dark);     /* 탭 글꼴: 어두운 회색 */
+    --content-font-color: var(--black);
+    --tab-font-color: var(--grey-dark);
 
     --content-font-family: "Segoe UI";
-    
-    --scrollbar-foreground: #606060;
-    --scrollbarSlider-background: rgba(121, 121, 121, 0.4);
 }
 
 body {
@@ -40,9 +36,9 @@ body {
 }
 
 select, button {
-    background-color: var(--grey-light); /* 버튼/선택창: 밝은 회색 */
-    color: var(--black); /* 글꼴: 검은색 */
-    border: 1px solid var(--grey-medium); /* 테두리 추가 */
+    background-color: var(--grey-light);
+    color: var(--black);
+    border: 1px solid var(--grey-medium);
     padding: 5px 10px;
 }
 
@@ -90,7 +86,7 @@ select:hover {
     padding: 5px;
     color: var(--tab-font-color);
     height: 18px;
-    border-bottom: 1px solid var(--border_color); /* 하단 테두리 추가 */
+    border-bottom: 1px solid var(--border_color);
 }
 
 .tab {
@@ -105,7 +101,7 @@ select:hover {
 }
 
 .content {
-    background-color: var(--panel-background); /* 흰색 배경 */
+    background-color: var(--panel-background);
     color: var(--content-font-color);
     font-family: var(--content-font-family);
     overflow-y: auto;
@@ -120,7 +116,7 @@ select:hover {
 .tab-content {
     display: none;
     height: 100%;
-    background-color: var(--panel-background); /* 흰색 배경 */
+    background-color: var(--panel-background);
     box-sizing: border-box;
 }
 
@@ -129,9 +125,9 @@ select:hover {
 }
 
 .tab.selected {
-    background-color: var(--panel-background); /* 선택된 탭은 배경과 같게 */
-    color: var(--black); /* 선택된 탭 글꼴은 검은색으로 강조 */
-    border-bottom: 2px solid #007ACC; /* 아래쪽에 파란색 강조선 추가 */
+    background-color: var(--panel-background);
+    color: var(--black);
+    border-bottom: 2px solid #007ACC;
 }
 
 .compilation-content {
@@ -180,13 +176,13 @@ select:hover {
     flex: none;
 }
 
-/* 코드 블록 스타일: 이미지처럼 밝은 배경에 검은색에 가까운 글씨 */
+/* 일반 코드 블록 스타일 */
 code {
-    background-color: #f7f7f7; /* 아주 밝은 회색 배경 */
+    background-color: #f7f7f7;
     border-color: #cccccc;
     border-radius: 5px;
     border-width: 1px;
-    color: #333333; /* 어두운 글꼴 */
+    color: #333333;
     font-family: Menlo,sans-serif;
     font-size: .75rem;
     line-height: 1rem;
@@ -196,7 +192,6 @@ code {
 
 .editor{
     height: 100%;
-    /* 편집기 배경도 밝게 처리 필요 (Monaco Editor 등의 설정에 따라 다름) */
 }
 
 html, body {
@@ -219,13 +214,11 @@ html, body {
 }
 
 .gutter.gutter-horizontal {
-    /* 구분선 이미지는 그대로 유지 */
     background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAeCAYAAADkftS9AAAAIklEQVQoU2M4c+bMfxAGAgYYmwGrIIiDjrELjpo5aiZeMwF+yNnOs5KSvgAAAABJRU55rD/p/YyX/T/R/T/x+rAAAAAElFTkSuQmCC'); 
     cursor: col-resize;
 }
 
 .gutter.gutter-vertical {
-    /* 구분선 이미지는 그대로 유지 */
     background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAFAQMAAABo7865AAAABlBMVEVHcEzMzMzyAv2sAAAAAXRSTlMAQObYZgAAABBJREFUeF5jOAMEEAIEEFwAn3kMwcB6I2AAAAAASUVORK5CYII=');
     cursor: row-resize;
 }
@@ -277,7 +270,7 @@ html, body {
 }
 
 .note-summary {
-    background-color: var(--grey-light); /* 밝은 배경 */
+    background-color: var(--grey-light);
     color: var(--black);
     padding: 10px;
     cursor: pointer;
@@ -289,30 +282,28 @@ html, body {
 }
 
 .note-status-fail {
-    color: #cc3333; /* 실패 상태 텍스트 색상을 좀 더 일반적인 붉은색으로 */
+    color: #cc3333;
     font-weight: bold;
 }
 
 .note-content {
     padding: 15px;
-    background-color: var(--panel-background); /* 흰색 배경 */
+    background-color: var(--panel-background);
     border-top: 1px solid var(--grey-medium);
     color: var(--black);
 }
 
-/* 일반적인 h4 스타일 (AI 분석 결과 h4와 구분) */
 .note-content h4 {
     margin-top: 0;
-    color: var(--grey-dark); /* 어두운 글꼴 */
+    color: var(--grey-dark);
 }
 
 .note-content p {
     margin: 5px 0;
 }
 
-/* 오답 노트에 포함된 코드 블록 스타일 */
 .note-content pre {
-    background-color: #f0f0f0; /* 코드 블록 배경도 밝게 */
+    background-color: #f0f0f0;
     color: var(--black);
     padding: 10px;
     border-radius: 4px;
@@ -320,7 +311,6 @@ html, body {
     word-break: break-all;
 }
 
-/* 오답 노트 삭제 버튼 스타일 */
 .delete-note-btn {
     float: right; 
     cursor: pointer;
@@ -338,16 +328,16 @@ html, body {
 
 /* --- 에러 번역 결과 스타일 --- */
 .error-translation {
-    background-color: #fff0f0; /* 밝은 붉은색 계열 배경 */
+    background-color: #fff0f0;
     border: 1px solid #ffcccc;
-    border-left: 3px solid #cc3333; /* 에러를 의미하는 붉은색 테두리 */
+    border-left: 3px solid #cc3333;
     border-radius: 5px;
     padding: 15px;
     margin: 5px;
 }
 
 .error-title {
-    color: #cc3333; /* 에러 제목 색상 */
+    color: #cc3333;
     margin-top: 0;
     font-size: 1.1em;
 }
@@ -357,7 +347,6 @@ html, body {
     line-height: 1.5; 
 }
 
-/* 원본 에러 메시지 스타일 */
 .original-error-details summary {
     cursor: pointer;
     color: var(--grey-dark);
@@ -366,7 +355,7 @@ html, body {
 }
 
 .original-error {
-    background-color: #f0f0f0; /* 밝은 배경 */
+    background-color: #f0f0f0;
     color: var(--black);
     padding: 10px;
     border-radius: 4px;
@@ -376,8 +365,7 @@ html, body {
     font-size: small;
 }
 
-/* --- AI 분석 버튼 및 결과 스타일 (신규) --- */
-
+/* --- AI 분석 버튼 및 결과 스타일 --- */
 .ai-analysis-btn {
     background-color: #007ACC; 
     color: white;
@@ -400,15 +388,13 @@ html, body {
     cursor: default;
 }
 
-/* AI 분석 결과 섹션의 헤딩 스타일을 구분합니다. */
 .note-content h4:nth-of-type(2) { 
-    color: #3399ff !important; /* 분석 결과 헤딩 색상 (밝은 파란색 계열) */
+    color: #3399ff !important;
     border-bottom: 1px solid var(--grey-medium);
     padding-bottom: 5px;
     margin-top: 15px;
 }
 
-/* AI 분석 결과 내부의 리스트 스타일 */
 .note-content ul {
     list-style-type: '🧠 '; 
     padding-left: 20px;
@@ -427,8 +413,7 @@ html, body {
     color: var(--black);
 }
 
-
-/* --- [수정] (요청 2) 나의 취약개념 탭 스타일 --- */
+/* --- 나의 취약개념 탭 스타일 --- */
 .weak-concept-summary {
     padding: 15px;
 }
@@ -438,15 +423,13 @@ html, body {
     padding-left: 0;
 }
 
-/* <details> 태그 자체의 스타일 */
 .weak-concept-details {
     border: 1px solid var(--grey-medium);
     border-radius: 5px;
     margin-bottom: 10px;
-    background-color: var(--grey-very-light); /* 밝은 배경 */
+    background-color: var(--grey-very-light);
 }
 
-/* <summary> 태그 (클릭 가능한 헤더) 스타일 */
 .weak-concept-details summary {
     padding: 10px 15px;
     cursor: pointer;
@@ -457,48 +440,360 @@ html, body {
     transition: background-color 0.2s; 
 }
 
-/* <details>가 열려있지 않을 때의 호버 효과 */
 .weak-concept-details:not([open]) summary:hover {
     background-color: var(--grey-medium);
 }
 
-/* <details>가 열려있을 때의 <summary> 스타일 (더 진하게) */
 .weak-concept-details[open] summary {
-    background-color: var(--grey-light); /* 더 밝은 회색 */
+    background-color: var(--grey-light);
     border-bottom: 1px solid var(--grey-medium);
 }
 
-/* <summary> 내부의 개념 이름 */
 .weak-concept-name {
     font-size: 1.1em;
     font-weight: bold;
     color: var(--black);
 }
 
-/* <summary> 내부의 누적 횟수 */
+/* [최종] 취약 개념 횟수 뱃지와 X 버튼 스타일 */
 .weak-concept-count {
     font-size: 0.9em;
-    background-color: #cc3333; /* 붉은색 배경 */
-    color: var(--white); /* 흰색 글꼴 */
+    background-color: #cc3333;
+    color: var(--white);
     font-weight: bold;
     padding: 3px 8px;
     border-radius: 10px;
-    min-width: 50px; 
+    min-width: 30px; 
     text-align: center;
+    margin-right: 20px; /* 간격 넓힘 */
 }
 
-/* 펼쳐지는 팁 컨텐츠 영역 */
+.delete-concept-btn {
+    color: #ff3b30; /* 선명한 빨간색 */
+    font-weight: 900;
+    font-size: 1.1em;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+.delete-concept-btn:hover {
+    transform: scale(1.2);
+}
+
 .weak-concept-content {
     padding: 15px;
-    background-color: var(--panel-background); /* 흰색 배경 */
+    background-color: var(--panel-background);
     border-top: 1px solid var(--grey-medium);
 }
 
-/* 팁 컨텐츠 내부의 p 태그 (개별 팁) */
 .weak-concept-content p {
     margin: 8px 0;
     line-height: 1.5;
     color: var(--black);
     padding-left: 10px;
     border-left: 2px solid var(--grey-dark);
+}
+
+/* =========================================
+   [최종] 스크롤바 디자인 (두껍고 둥글고 짧게)
+   ========================================= */
+::-webkit-scrollbar {
+    width: 16px !important; /* 두께 증가 */
+    height: 16px !important;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent; 
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: #c1c1c1; 
+    border-radius: 10px; 
+    border: 4px solid transparent; /* 안쪽 여백 효과 */
+    background-clip: content-box; 
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: #a8a8a8;
+}
+
+/* 패널 내부 스크롤 적용 */
+.content, .markdown-content, .tab-content, 
+#generated-problems-list, .problem-list-area {
+    overflow-y: auto !important;
+}
+
+/* =========================================
+   [최종] 생성된 문제 목록 스타일 (제목 + 난이도 + 날짜)
+   ========================================= */
+.generated-problem-item {
+    padding: 12px;
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background-color 0.2s;
+}
+
+.generated-problem-item:hover {
+    background-color: #f5f5f5;
+}
+
+.generated-problem-item.active {
+    background-color: #e3f2fd; 
+    border-left: 4px solid #007ACC;
+}
+
+.gen-prob-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+}
+
+.gen-prob-title {
+    font-weight: 600;
+    color: #333;
+    font-size: 14px;
+}
+
+.gen-prob-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #888;
+}
+
+.gen-prob-badge {
+    background-color: #eee;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.gen-prob-date {
+    font-size: 11px;
+}
+
+.delete-problem-btn {
+    color: #ccc;
+    font-size: 16px;
+    padding: 5px;
+    transition: color 0.2s;
+}
+.delete-problem-btn:hover {
+    color: #ff3b30;
+}
+
+/* =========================================
+   [최종] 오답 노트 코드 스타일 (알록달록, 얇은 폰트)
+   ========================================= */
+pre code.hljs {
+    display: block;
+    overflow-x: auto;
+    padding: 15px;
+    background: #ffffff !important; 
+    color: #24292e !important; /* 기본 글자색: 짙은 회색 */
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 14px;
+    line-height: 1.6;
+    font-weight: normal !important; /* 굵기 제거 (얇게) */
+    border: 1px solid #e1e4e8;
+    border-radius: 6px;
+}
+
+/* 1. 키워드 (int, return 등) - 붉은 계열 */
+.hljs-keyword, 
+.hljs-selector-tag, 
+.hljs-literal {
+    color: #d73a49 !important; 
+    font-weight: normal !important;
+}
+
+/* 2. 함수명, 클래스명 - 보라색 계열 */
+.hljs-title, 
+.hljs-section, 
+.hljs-selector-id {
+    color: #6f42c1 !important; 
+    font-weight: bold !important; 
+}
+
+/* 3. 문자열 - 짙은 파란색 */
+.hljs-string, 
+.hljs-doctag {
+    color: #032f62 !important; 
+}
+
+/* 4. 주석 - 회색/초록색 */
+.hljs-comment, 
+.hljs-quote, 
+.hljs-meta {
+    color: #6a737d !important;
+    font-style: italic;
+}
+
+/* 5. 타입 - 주황색/갈색 */
+.hljs-type, 
+.hljs-params {
+    color: #e36209 !important; 
+}
+
+/* 6. 숫자 - 파란색 */
+.hljs-number {
+    color: #005cc5 !important;
+}
+
+
+/* 회색 박스 리스트 UI (공통) */
+.list-item-box {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #f8f9fa;
+    border: 1px solid #e1e4e8;
+    border-radius: 6px;
+    padding: 12px 15px;
+    margin-bottom: 8px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    transition: background 0.2s;
+}
+
+.list-item-box:hover {
+    background-color: #f1f3f5;
+}
+
+.list-item-content {
+    font-weight: 600;
+    color: #333;
+    font-size: 14px;
+}
+
+.badge-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.count-badge {
+    background-color: #d93025;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.difficulty-badge {
+    background-color: #eee;
+    color: #555;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.close-btn {
+    cursor: pointer;
+    color: #999;
+    font-size: 18px;
+    background: none;
+    border: none;
+    padding: 0;
+    line-height: 1;
+    transition: color 0.2s;
+}
+
+.close-btn:hover {
+    color: #d93025;
+}
+
+/* 버튼 스타일 (Run 버튼과 통일) */
+button {
+    cursor: pointer;
+}
+
+.gray-btn-style {
+    background-color: #f0f0f0 !important;
+    color: #333 !important;
+    border: 1px solid #ccc !important;
+    border-radius: 4px;
+    padding: 5px 10px;
+    font-size: 13px;
+    font-weight: 600; 
+}
+
+.gray-btn-style:hover {
+    background-color: #e0e0e0 !important;
+}
+
+pre { margin: 0; }
+
+.co-ft-layout-container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    height: 100%;
+}
+
+.problem-content-area {
+    flex: 2;
+    background: #fff;
+    border: 1px solid #eee;
+    border-radius: 5px;
+    padding: 20px;
+    overflow-y: auto;
+    min-height: 200px;
+}
+
+.problem-list-area {
+    flex: 1;
+    border-top: 1px solid #eee;
+    padding-top: 10px;
+    overflow-y: auto;
+    max-height: 250px;
+}
+
+#modal { animation: fadeIn 0.3s; }
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.tab-content-left {
+    height: calc(100% - 40px);
+    overflow-y: auto;
+}
+
+/* 추천받기 파란색 버튼 스타일 */
+.recommend-btn {
+    background-color: #0078d7; 
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 20px;
+    font-size: 15px;
+    font-weight: bold;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+    transition: all 0.2s ease;
+}
+
+.recommend-btn:hover {
+    background-color: #005a9e;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.recommend-btn:active {
+    transform: translateY(0);
+}
+
+/* 내부 링크 스타일 */
+.internal-link {
+    cursor: pointer;
+    transition: color 0.2s;
 }
