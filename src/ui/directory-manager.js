@@ -27,7 +27,7 @@ function readMdFile(filePath) {
         return `File does not exist: ${filePath}`;
     }
     const data = fs.readFileSync(filePath, 'utf8');
-    // 스켈레톤 코드와 달리, 파일이 비어있어도 오류가 나지 않도록 수정
+    
     if (!data) {
         return `File does not exist or is empty: ${filePath}`;
     }
@@ -173,11 +173,9 @@ class DirectoryManager {
         return [...global.problemNames];
     }
     
-    // [!!! 여기가 수정된 부분 !!!]
+    
     getResultsSchemaJson() {
-        // 원본(global.resultsSchemaJson)을 반환하는 대신,
-        // 깊은 복사(deep copy)된 '복사본'을 반환합니다.
-        // 이렇게 하면 index.js에서 delete schema['$id']를 해도 원본이 손상되지 않습니다.
+        
         return JSON.parse(JSON.stringify(global.resultsSchemaJson));
     }
 
