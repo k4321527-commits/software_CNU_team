@@ -107,6 +107,7 @@ function setTestResults(results) {
         }
 
         if (test.status !== 'Pass') {
+            // 로컬 문제인 경우에만 실패 파일 저장
             if (!activeProblem.startsWith("CO-FT-")) {
                 const failedTestcasePath = path.join(
                     problemBuildsDir, "problems", activeProblem, `${test.testcase_name}_failed.txt`
@@ -139,19 +140,22 @@ function setTestResults(results) {
     div.innerHTML = html;
     document.getElementById('tab-test-results-button').click();
 
+    // [로컬 문제] 실패 시 오답 노트 자동 저장
     const passStatuses = ['Pass', 'Passed', 'Success', 'Ok', 'OK'];
     const allTestsPassed = results.tests.every(test => passStatuses.includes(test.status));
 
     if (!allTestsPassed) {
         if (noteManager) {
+            console.log("Local Problem Failed. Saving Note...");
             noteManager.addNote(activeProblem, editor.getValue(), results);
-            setNotes(activeProblem);
-            setMyWeakConcepts();
+            setNotes(activeProblem);     // 오답노트 탭 갱신
+            setMyWeakConcepts();         // 취약개념 탭 갱신
         }
     }
 }
 
 function run(callback, testcase = 'All', expected = false) {
+    // CO-FT 문제는 로컬 컴파일러로 실행 불가 -> AI 검증 유도
     if (activeProblem.startsWith("CO-FT-") || activeProblem === "CO-FT PROBLEM") {
         alert("AI 생성 문제는 'AI 검증' 버튼을 이용해주세요.");
         return;
@@ -183,7 +187,7 @@ function run(callback, testcase = 'All', expected = false) {
             element.innerHTML = translateError(parsedError);
             document.getElementById('tab-compilation-button').click();
             
-            // 컴파일 에러 저장
+            // [로컬 문제] 컴파일/빌드 에러 시 오답 노트 저장
             if (noteManager) {
                 const compileErrorResult = {
                     status: "Compilation Error",
@@ -209,6 +213,7 @@ function run(callback, testcase = 'All', expected = false) {
             element.innerHTML = html;
             document.getElementById('tab-compilation-button').click();
 
+            // [로컬 문제] 런타임 에러 시 오답 노트 저장
             if (noteManager) {
                 const runtimeErrorResult = {
                     status: "Runtime Error",
@@ -330,15 +335,15 @@ function loadCoFtTabContent(tabName) {
         container.innerHTML = `
             <div style="padding: 30px 20px; text-align: center;">
                 <p style="margin-bottom: 20px; color: #555; font-size: 1.1em; line-height: 1.6;">
-                    AI 생성 문제와 관련된<br>
-                    <strong>OpenLeetCode 문제들을 추천합니다!<br>
-                    
+                    이 문제와 관련된<br>
+                    <strong>OpenLeetCode 문제(3개)</strong>와 <strong>백준 문제(1개)</strong>를<br>
+                    함께 추천받아 완벽하게 학습하세요!
                 </p>
                 <button id="coft-recommend-btn" class="recommend-btn">
                     🚀 맞춤 문제 추천받기
                 </button>
                 <div id="coft-recommend-loading" style="display:none; margin-top:20px; color:#007ACC; font-weight:bold;">
-                    CO-FT가 분석 중입니다... ⏳
+                    내 문제 목록과 백준을 분석 중입니다... ⏳
                 </div>
             </div>
         `;
@@ -355,7 +360,6 @@ function bindRelatedProblemButton(container) {
             btn.style.display = 'none';
             loading.style.display = 'block';
 
-            // 외부 URL 요청
             ipcRenderer.invoke('request-related-problems', {
                 problemName: currentGeneratedProblem.title
             }).then(html => {
@@ -372,7 +376,7 @@ function setConcepts(problemName) {
     const content = document.getElementById('concept-content');
     content.innerHTML = `
         <div class="note-content">
-            <p>현재 문제(${problemName})의 핵심 개념을 CO-FT 에게 물어볼 수 있습니다.</p>
+            <p>현재 문제(${problemName})의 핵심 개념을 AI에게 물어볼 수 있습니다.</p>
             <button id="get-concepts-btn" class="ai-analysis-btn">💡 AI 핵심 개념 분석</button>
             <div id="ai-concepts-result"></div>
         </div>
@@ -413,7 +417,7 @@ function setRelatedProblems(problemName) {
 }
 
 // =========================================================
-// 4. 오답 노트 및 취약 개념 (수정됨: 유령 데이터 방지)
+// 4. 오답 노트 및 취약 개념
 // =========================================================
 
 function setNotes(problemName) {
@@ -475,6 +479,45 @@ function setNotes(problemName) {
     }
 }
 
+// [신규] 정답 코드 생성 버튼 이벤트
+function initializeSolutionGenerator() {
+    const btn = document.getElementById('generate-solution-btn');
+    const area = document.getElementById('solution-code-area');
+    const codeBlock = document.getElementById('ai-solution-code');
+
+    if (!btn) return;
+
+    btn.addEventListener('click', async () => {
+        if (!activeProblem) {
+            alert("먼저 문제를 선택해주세요.");
+            return;
+        }
+
+        btn.disabled = true;
+        btn.textContent = "AI가 최적의 코드를 작성 중입니다... ⏳";
+        area.style.display = 'none';
+
+        try {
+            let problemData = activeProblem.startsWith("CO-FT") 
+                ? currentGeneratedProblem 
+                : { title: activeProblem, description: directoryManager.getDescription(activeProblem) };
+
+            const solutionCode = await ipcRenderer.invoke('request-solution-code', problemData);
+
+            codeBlock.textContent = solutionCode;
+            area.style.display = 'block';
+            
+            if (window.hljs) window.hljs.highlightElement(codeBlock);
+
+        } catch (e) {
+            alert("생성 실패: " + e.message);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = "✨ AI 정답 코드 생성하기";
+        }
+    });
+}
+
 function setMyWeakConcepts() {
     const content = document.getElementById('weak-concepts-summary-content');
     if (!noteManager) { content.innerHTML = "<p>로딩 중...</p>"; return; }
@@ -483,11 +526,9 @@ function setMyWeakConcepts() {
     const ignoredList = noteManager.getIgnoredConcepts(); 
     const conceptMap = new Map();
 
-    // [핵심 수정] 존재하는 CO-FT 문제 ID 목록 가져오기
     const existingGeneratedProblems = noteManager.getGeneratedProblems().map(p => p.id);
 
     allNotes.forEach(note => {
-        // [핵심 수정] CO-FT 문제인데 목록에 없으면(삭제된 문제면) 무시
         if (note.problemName.startsWith("CO-FT-") && !existingGeneratedProblems.includes(note.problemName)) {
             return;
         }
@@ -605,7 +646,7 @@ function onProblemSelected(problemName) {
 }
 
 // =========================================================
-// 6. CO-FT 문제 관리 (삭제 시 오답 노트 연동)
+// 6. CO-FT 문제 관리
 // =========================================================
 
 function renderGeneratedProblemsList() {
@@ -647,7 +688,6 @@ function renderGeneratedProblemsList() {
             e.stopPropagation();
             if (confirm("이 문제를 삭제하시겠습니까? (관련 오답노트도 함께 정리됩니다)")) {
                 noteManager.deleteGeneratedProblem(p.id);
-                // [재발 방지] 화면 갱신
                 if (currentGeneratedProblem && currentGeneratedProblem.id === p.id) {
                     currentGeneratedProblem = null;
                     document.getElementById('generated-problem-display').innerHTML = '<p style="color:#999; text-align:center; margin-top:50px;">문제가 삭제되었습니다.</p>';
@@ -655,7 +695,6 @@ function renderGeneratedProblemsList() {
                     activeProblem = "CO-FT PROBLEM";
                 }
                 renderGeneratedProblemsList();
-                // 오답 노트/취약 개념 갱신하여 유령 데이터 즉시 제거
                 setNotes(activeProblem);
                 setMyWeakConcepts(); 
             }
@@ -723,7 +762,7 @@ function initializeCoFtProblem() {
         
         document.getElementById('tab-test-results-button').click();
         const resDiv = document.getElementById('test-results-content');
-        resDiv.innerHTML = "<p style='padding:20px; text-align:center;'>⏳ COFT가 코드를 채점 중입니다... <br></p>";
+        resDiv.innerHTML = "<p style='padding:20px; text-align:center;'>⏳ 코드를 채점 중입니다... <br>(약 3~5초 소요)</p>";
 
         try {
             const result = await ipcRenderer.invoke('verify-co-ft-solution', {
@@ -766,11 +805,9 @@ function initializeCurriculumCommand() {
         let wc = [];
         if (noteManager) {
             const ignoredList = noteManager.getIgnoredConcepts();
-            // [핵심 수정] 존재하는 CO-FT 문제 목록 가져오기
             const existingGeneratedProblems = noteManager.getGeneratedProblems().map(p => p.id);
 
             noteManager.getAllNotes().forEach(n => {
-                // [핵심 수정] 삭제된 CO-FT 문제의 오답 노트는 커리큘럼에서 제외
                 if (n.problemName.startsWith("CO-FT-") && !existingGeneratedProblems.includes(n.problemName)) {
                     return;
                 }
@@ -879,6 +916,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     initializeAddNoteButton();
     initializeNoteDeletion();
     initializeNoteAnalysis();
+    
+    // [중요] 정답 코드 생성기 초기화
+    initializeSolutionGenerator();
     
     initializeCoFtProblem();
 
