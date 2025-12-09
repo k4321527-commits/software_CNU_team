@@ -162,7 +162,7 @@ ipcMain.handle('request-problem-concepts', async (event, data) => {
     return response.text.trim();
 });
 
-// [핵심 수정] AI: 관련 문제 추천 (3:1 하이브리드 외부 추천)
+// [AI: 관련 문제 추천 (3:1 하이브리드 외부 추천)]
 // LeetCode(OpenLeetCode) 3문제 + 백준 1문제
 ipcMain.handle('request-related-problems', async (event, data) => {
     if (!ai) throw new Error("AI Key Missing");
@@ -377,6 +377,35 @@ ipcMain.handle('request-learning-content', async (event, { topic, type }) => {
     }
 });
 
+// [신규] 정답 코드 생성 핸들러 (오답 노트용)
+ipcMain.handle('request-solution-code', async (event, problem) => {
+    if (!ai) throw new Error("AI Key Missing");
+
+    const prompt = `
+        다음 문제에 대한 **최적화된 C++ 정답 코드**를 작성해줘.
+        
+        [문제 정보]
+        ${JSON.stringify(problem)}
+        
+        **요청 사항:**
+        1. 주석으로 코드의 핵심 로직을 간단히 설명해줘.
+        2. 시간 복잡도와 공간 복잡도를 코드 맨 아래에 주석으로 달아줘.
+        3. 오직 코드만 출력해 (마크다운 \`\`\` 없이).
+        4. 뇌 이모지 금지.
+    `;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: [{ role: "user", parts: [{ text: prompt }] }]
+        });
+        // 마크다운 제거 후 반환
+        return response.text.replace(/```cpp/g, '').replace(/```/g, '').trim();
+    } catch (e) {
+        return `// 정답 생성 실패: ${e.message}`;
+    }
+});
+
 // [커리큘럼 창 열기]
 ipcMain.on('open-curriculum-window', (event, conceptsToReview) => {
     const curriculumWin = new BrowserWindow({
@@ -408,3 +437,4 @@ ipcMain.on('open-curriculum-window', (event, conceptsToReview) => {
     const query = { concepts: JSON.stringify(conceptsToReview || []) };
     curriculumWin.loadFile('curriculum.html', { query });
 });
+
