@@ -1,5 +1,5 @@
-cd C:\Users\k4321\software_CNU_team // 자신의 컴퓨터에 따라 위치가 다름 
-C:\Users\k4321\software_CNU_team 를 자신의 파일 위치로 고치면됨
+cd C:\Users\k4321\software_CNU_team // 자신의 컴퓨터에 따라 위치가 다릅니다.
+C:\Users\k4321\software_CNU_team 를 자신의 저장 파일 위치로 고치면 됩니다
 
 "실행방법" cmd에 한줄씩 
 1번 git clone https://github.com/k4321527-commits/software_CNU_team
