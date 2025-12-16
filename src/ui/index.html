@@ -22,8 +22,11 @@
             AI 검증
         </button>
         
-        <button id="custom-testcase-button" class="gray-btn-style">▶ Custom Testcase</button>
-        <button id="save-button" class="gray-btn-style">Save</button>
+        <div style="display: none !important; width: 0; height: 0; overflow: hidden; opacity: 0; pointer-events: none;">
+            <button id="custom-testcase-button" class="gray-btn-style">▶ Custom Testcase</button>
+            <button id="save-button" class="gray-btn-style">Save</button>
+        </div>
+
         <button id="add-note-button" class="gray-btn-style">오답 노트 추가</button>
         
         <button id="curriculum-button" class="gray-btn-style" style="background-color: #007ACC !important; color: white !important; border: 1px solid #005f9e !important;">
@@ -32,7 +35,6 @@
     </div>
     
     <div class="panel" id="root-panel">
-        
         <div id="left-panel" class="panel panel-col">
             <div class="tab-panel panel-item-fixed-height">
                 <div class="tab selected" id="tab-label-description">Description</div>
@@ -52,7 +54,6 @@
                 <div class="markdown-content content" id="description-content"></div>
 
                 <div id="co-ft-generator-ui" class="content" style="display: none; padding: 20px; background-color: #ffffff; color: #000000;">
-                    
                     <div style="border: 1px solid #e0e0e0; padding: 15px; border-radius: 8px; background-color: #f9f9f9; margin-bottom: 15px;">
                         <h2 style="color: #333; margin-top: 0; font-size: 1.2em;">CO-FT PROBLEM 생성</h2>
                         <div style="display: flex; align-items: center; gap: 10px;">
@@ -101,15 +102,12 @@
             <div id="tab-오답-노트" class="tab-content tab-content-left">
                 <div class="content">
                     <div id="notes-content"></div>
-                    
                     <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
-                    
                     <div style="padding: 10px;">
                         <h4 style="color: #333; margin-bottom: 10px;">💡 정답이 궁금하다면?</h4>
                         <button id="generate-solution-btn" class="gray-btn-style" style="width: 100%; padding: 10px; background-color: #f0f7ff; border: 1px solid #007ACC; color: #007ACC; font-weight: bold;">
                             ✨ AI 정답 코드 생성하기
                         </button>
-                        
                         <div id="solution-code-area" style="display: none; margin-top: 15px;">
                             <h5 style="margin: 0 0 5px 0;">✅ AI 추천 정답 코드:</h5>
                             <pre><code id="ai-solution-code" class="language-cpp"></code></pre>
@@ -141,14 +139,18 @@
                     <div id="tab-testcase-container">
                         <h5 class="testcase-container-title">Input:</h5>
                         <textarea id="input-container" class="testcase-container-text"></textarea>
-                        <h5 class="testcase-container-title">Expected:</h5>
-                        <textarea readonly id="expected-output" class="testcase-container-text"></textarea>
-                        <h5 class="testcase-container-title">Output:</h5>
-                        <textarea readonly id="testcase-output" class="testcase-container-text"></textarea>
-                        <h5 class="testcase-container-title">Stdout:</h5>
-                        <textarea readonly id="testcase-stdout" class="testcase-container-text"></textarea>
-                        <h5 class="testcase-container-title">Stderr:</h5>
-                        <textarea readonly id="testcase-stderr" class="testcase-container-text"></textarea>
+                        
+                        <h5 class="testcase-container-title" style="display: none;"></h5>
+                        <textarea readonly id="expected-output" class="testcase-container-text" style="display: none;"></textarea>
+
+                        <h5 class="testcase-container-title" style="display: none;"></h5>
+                        <textarea readonly id="testcase-output" class="testcase-container-text" style="display: none;"></textarea>
+
+                        <h5 class="testcase-container-title" style="display: none;"></h5>
+                        <textarea readonly id="testcase-stdout" class="testcase-container-text" style="display: none;"></textarea>
+
+                        <h5 class="testcase-container-title" style="display: none;"></h5>
+                        <textarea readonly id="testcase-stderr" class="testcase-container-text" style="display: none;"></textarea>
                     </div>
                 </div>
                 
